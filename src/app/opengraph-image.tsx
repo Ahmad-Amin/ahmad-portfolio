@@ -22,20 +22,20 @@ export default function OpengraphImage() {
           fontFamily: "sans-serif",
         }}
       >
+        <div style={{ display: "flex", fontSize: 88, fontWeight: 700, lineHeight: 1.05 }}>
+          {profile.brand}
+        </div>
         <div
           style={{
             display: "flex",
             fontSize: 28,
             color: "#f0973d",
-            marginBottom: 24,
+            marginTop: 20,
             letterSpacing: 2,
             textTransform: "uppercase",
           }}
         >
-          {profile.role}
-        </div>
-        <div style={{ display: "flex", fontSize: 72, fontWeight: 600, lineHeight: 1.1 }}>
-          {profile.name}
+          {profile.name} — {profile.role}
         </div>
         <div
           style={{

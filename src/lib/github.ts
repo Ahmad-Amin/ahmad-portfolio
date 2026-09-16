@@ -4,12 +4,21 @@ export interface ContributionDay {
   level: number;
 }
 
+export interface TopRepo {
+  name: string;
+  description: string | null;
+  url: string;
+  stars: number;
+  language: string | null;
+}
+
 export interface GithubActivity {
   publicRepos: number;
   followers: number;
   stars: number;
   totalContributions: number;
   days: ContributionDay[];
+  topRepos: TopRepo[];
 }
 
 const CONTRIBUTION_LEVEL: Record<string, number> = {
@@ -20,39 +29,104 @@ const CONTRIBUTION_LEVEL: Record<string, number> = {
   FOURTH_QUARTILE: 4,
 };
 
-const QUERY = `
-  query($username: String!) {
-    user(login: $username) {
-      followers {
-        totalCount
-      }
-      repositories(first: 100, ownerAffiliations: OWNER, isFork: false) {
-        totalCount
-        nodes {
-          stargazerCount
-        }
-      }
-      contributionsCollection {
-        contributionCalendar {
-          totalContributions
-          weeks {
-            contributionDays {
-              date
-              contributionCount
-              contributionLevel
-            }
-          }
+const REPO_FIELDS = `
+  name
+  description
+  url
+  stargazerCount
+  primaryLanguage {
+    name
+  }
+`;
+
+const BASE_QUERY_FIELDS = `
+  followers {
+    totalCount
+  }
+  repositories(first: 100, ownerAffiliations: OWNER, isFork: false) {
+    totalCount
+    nodes {
+      stargazerCount
+    }
+  }
+  contributionsCollection {
+    contributionCalendar {
+      totalContributions
+      weeks {
+        contributionDays {
+          date
+          contributionCount
+          contributionLevel
         }
       }
     }
   }
 `;
 
+interface RawRepoNode {
+  name: string;
+  description: string | null;
+  url: string;
+  stargazerCount: number;
+  primaryLanguage: { name: string } | null;
+}
+
+function toTopRepo(repo: RawRepoNode): TopRepo {
+  return {
+    name: repo.name,
+    description: repo.description,
+    url: repo.url,
+    stars: repo.stargazerCount,
+    language: repo.primaryLanguage?.name ?? null,
+  };
+}
+
+// When no explicit list is given, fall back to auto-picking the most-starred
+// owned repos rather than showing nothing.
+function buildQuery(featuredNames: string[]): string {
+  if (featuredNames.length === 0) {
+    return `
+      query($username: String!) {
+        user(login: $username) {
+          ${BASE_QUERY_FIELDS}
+          topRepos: repositories(
+            first: 6
+            ownerAffiliations: OWNER
+            isFork: false
+            orderBy: { field: STARGAZERS, direction: DESC }
+          ) {
+            nodes {
+              ${REPO_FIELDS}
+            }
+          }
+        }
+      }
+    `;
+  }
+
+  const repoVarDefs = featuredNames.map((_, i) => `$repoName${i}: String!`).join(", ");
+  const repoFields = featuredNames
+    .map(
+      (_, i) => `repo${i}: repository(owner: $username, name: $repoName${i}) { ${REPO_FIELDS} }`,
+    )
+    .join("\n");
+
+  return `
+    query($username: String!, ${repoVarDefs}) {
+      user(login: $username) {
+        ${BASE_QUERY_FIELDS}
+      }
+      ${repoFields}
+    }
+  `;
+}
+
 interface GraphQLResponse {
   data?: {
     user: {
       followers: { totalCount: number };
       repositories: { totalCount: number; nodes: { stargazerCount: number }[] };
+      topRepos?: { nodes: RawRepoNode[] };
       contributionsCollection: {
         contributionCalendar: {
           totalContributions: number;
@@ -66,13 +140,23 @@ interface GraphQLResponse {
         };
       };
     } | null;
+    [key: string]: unknown;
   };
   errors?: { message: string }[];
 }
 
-export async function getGithubActivity(username: string): Promise<GithubActivity | null> {
+export async function getGithubActivity(
+  username: string,
+  featuredRepoNames: string[] = [],
+): Promise<GithubActivity | null> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return null;
+
+  const query = buildQuery(featuredRepoNames);
+  const variables: Record<string, string> = { username };
+  featuredRepoNames.forEach((name, i) => {
+    variables[`repoName${i}`] = name;
+  });
 
   try {
     const res = await fetch("https://api.github.com/graphql", {
@@ -81,14 +165,16 @@ export async function getGithubActivity(username: string): Promise<GithubActivit
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query: QUERY, variables: { username } }),
+      body: JSON.stringify({ query, variables }),
       next: { revalidate: 3600 },
     });
 
     if (!res.ok) return null;
 
     const json = (await res.json()) as GraphQLResponse;
-    if (json.errors || !json.data?.user) return null;
+    // A named repo that's missing/renamed only errors that one aliased field —
+    // the rest of the response is still valid, so don't bail out entirely.
+    if (!json.data?.user) return null;
 
     const { user } = json.data;
     const stars = user.repositories.nodes.reduce((sum, repo) => sum + repo.stargazerCount, 0);
@@ -101,12 +187,23 @@ export async function getGithubActivity(username: string): Promise<GithubActivit
       })),
     );
 
+    let topRepos: TopRepo[];
+    if (featuredRepoNames.length > 0) {
+      topRepos = featuredRepoNames
+        .map((_, i) => json.data?.[`repo${i}`] as RawRepoNode | null | undefined)
+        .filter((repo): repo is RawRepoNode => repo != null)
+        .map(toTopRepo);
+    } else {
+      topRepos = (user.topRepos?.nodes ?? []).map(toTopRepo);
+    }
+
     return {
       publicRepos: user.repositories.totalCount,
       followers: user.followers.totalCount,
       stars,
       totalContributions: calendar.totalContributions,
       days,
+      topRepos,
     };
   } catch {
     return null;

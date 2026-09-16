@@ -30,7 +30,7 @@ export function Nav() {
           href="#hero"
           className="font-mono text-sm font-medium tracking-tight text-foreground"
         >
-          {profile.name}
+          {profile.brand}
         </a>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">

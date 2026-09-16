@@ -24,20 +24,20 @@ const fraunces = Fraunces({
   axes: ["opsz"],
 });
 
-const title = `${profile.name} — ${profile.role}`;
+const title = `${profile.brand} — ${profile.name}, ${profile.role}`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: title,
-    template: `%s — ${profile.name}`,
+    template: `%s — ${profile.brand}`,
   },
   description: profile.tagline,
   openGraph: {
     title,
     description: profile.tagline,
     url: siteUrl,
-    siteName: profile.name,
+    siteName: profile.brand,
     type: "website",
   },
   twitter: {
