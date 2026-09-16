@@ -16,23 +16,21 @@ export default function OpengraphImage() {
           justifyContent: "center",
           alignItems: "flex-start",
           padding: "80px",
-          backgroundColor: "#141414",
-          backgroundImage: "linear-gradient(135deg, #1a1a1a 0%, #141414 60%)",
-          color: "#fafafa",
+          backgroundColor: "#000000",
+          backgroundImage: "linear-gradient(135deg, #1d1d1f 0%, #000000 60%)",
+          color: "#f5f5f7",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", fontSize: 88, fontWeight: 700, lineHeight: 1.05 }}>
+        <div style={{ display: "flex", fontSize: 88, fontWeight: 600, lineHeight: 1.05 }}>
           {profile.brand}
         </div>
         <div
           style={{
             display: "flex",
             fontSize: 28,
-            color: "#f0973d",
+            color: "#2997ff",
             marginTop: 20,
-            letterSpacing: 2,
-            textTransform: "uppercase",
           }}
         >
           {profile.name} — {profile.role}
@@ -42,7 +40,7 @@ export default function OpengraphImage() {
             display: "flex",
             fontSize: 28,
             marginTop: 24,
-            color: "#a3a3a3",
+            color: "#86868b",
             maxWidth: 800,
           }}
         >

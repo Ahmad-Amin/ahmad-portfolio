@@ -3,23 +3,23 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: oklch(100% 0 0);
-  --foreground: oklch(0% 0 0);
-  --surface: oklch(96% 0 0);
-  --muted: oklch(38% 0 0);
-  --border: oklch(85% 0 0);
-  --accent: oklch(70% 0.19 55);
-  --accent-foreground: oklch(12% 0.02 55);
+  --background: oklch(98.86% 0.0026 286.35);
+  --foreground: oklch(23.16% 0.0038 286.10);
+  --surface: oklch(97.07% 0.0027 286.35);
+  --muted: oklch(53.99% 0.0077 286.14);
+  --border: oklch(86.52% 0.0068 286.26);
+  --accent: oklch(56.29% 0.1933 256.16);
+  --accent-foreground: oklch(100% 0 0);
 }
 
 .dark {
   --background: oklch(0% 0 0);
-  --foreground: oklch(100% 0 0);
-  --surface: oklch(12% 0 0);
-  --muted: oklch(72% 0 0);
-  --border: oklch(24% 0 0);
-  --accent: oklch(76% 0.19 60);
-  --accent-foreground: oklch(12% 0.02 55);
+  --foreground: oklch(97.07% 0.0027 286.35);
+  --surface: oklch(23.16% 0.0038 286.10);
+  --muted: oklch(62.17% 0.0074 286.18);
+  --border: oklch(38.02% 0.0050 286.16);
+  --accent: oklch(66.90% 0.1808 251.84);
+  --accent-foreground: oklch(23.16% 0.0038 286.10);
 }
 
 @theme inline {
@@ -32,12 +32,11 @@
   --color-accent-foreground: var(--accent-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-fraunces);
 
-  --text-display: clamp(3rem, 1.5rem + 8vw, 9rem);
-  --text-display--line-height: 0.92;
-  --text-display-sm: clamp(2.75rem, 1.75rem + 4vw, 5.5rem);
-  --text-display-sm--line-height: 0.95;
+  --text-display: clamp(2.5rem, 1.6rem + 4.5vw, 5rem);
+  --text-display--line-height: 1.05;
+  --text-display-sm: clamp(2rem, 1.5rem + 2.5vw, 3rem);
+  --text-display-sm--line-height: 1.1;
 }
 
 @layer base {

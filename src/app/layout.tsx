@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { MotionConfig } from "motion/react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
@@ -16,12 +16,6 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  axes: ["opsz"],
 });
 
 const title = `${profile.brand} — ${profile.name}, ${profile.role}`;
@@ -52,7 +46,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
@@ -61,12 +55,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className="motion-safe:scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-accent-foreground"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-accent-foreground"
         >
           Skip to content
         </a>

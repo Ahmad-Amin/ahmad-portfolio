@@ -4,39 +4,35 @@ import { Section } from "@/components/section";
 
 export function Hero() {
   return (
-    <Section
-      id="hero"
-      labelledBy="hero-heading"
-      variant="bleed"
-      className="pt-40 sm:pt-48"
-    >
-      <h1
-        id="hero-heading"
-        className="text-display font-serif font-black tracking-tighter text-foreground wrap-anywhere"
-      >
-        {profile.brand}
-      </h1>
-      <p className="mt-4 font-mono text-sm tracking-widest text-accent uppercase">
-        {profile.name} — {profile.role}
-      </p>
+    <Section id="hero" labelledBy="hero-heading" className="pt-32 sm:pt-40">
+      <div className="mx-auto max-w-3xl text-center">
+        <h1
+          id="hero-heading"
+          className="text-display font-semibold tracking-tight text-foreground wrap-anywhere"
+        >
+          {profile.brand}
+        </h1>
+        <p className="mt-4 text-sm font-medium tracking-wide text-accent">
+          {profile.name} · {profile.role}
+        </p>
 
-      <div className="mt-12 flex flex-col gap-8 border-t-2 border-foreground pt-8 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-xl space-y-4 text-lg text-muted">
-          <p>{profile.tagline}</p>
-          <p>{profile.bio[0]}</p>
-        </div>
+        <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-muted">
+          {profile.tagline}
+        </p>
+        <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-muted">
+          {profile.bio[0]}
+        </p>
 
-        <div className="flex flex-wrap items-center gap-8">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <a
             href="#footprint"
-            className="group inline-flex items-center gap-1 border-b-2 border-foreground pb-1 text-sm font-medium tracking-wide text-foreground uppercase transition-colors hover:border-accent hover:text-accent"
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
           >
             View Footprint
-            <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </a>
           <a
             href="#contact"
-            className="group inline-flex items-center gap-1 border-b-2 border-foreground pb-1 text-sm font-medium tracking-wide text-foreground uppercase transition-colors hover:border-accent hover:text-accent"
+            className="group inline-flex items-center gap-1 px-2 py-3 text-sm font-medium text-foreground transition-colors hover:text-accent"
           >
             Get in Touch
             <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

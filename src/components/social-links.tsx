@@ -16,7 +16,7 @@ export function SocialLinks({ variant = "icon", className }: SocialLinksProps) {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-sm tracking-wide text-muted uppercase transition-colors hover:text-accent"
+              className="text-sm font-medium text-muted transition-colors hover:text-accent"
             >
               {platform}
             </a>
@@ -35,7 +35,7 @@ export function SocialLinks({ variant = "icon", className }: SocialLinksProps) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={platform}
-            className="inline-flex size-9 items-center justify-center border border-border text-muted transition-colors hover:border-accent hover:text-accent"
+            className="inline-flex size-9 items-center justify-center rounded-full bg-surface text-muted transition-colors hover:bg-accent/10 hover:text-accent"
           >
             <Icon className="size-4" />
           </a>

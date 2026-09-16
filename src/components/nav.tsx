@@ -24,44 +24,41 @@ export function Nav() {
   }, [open]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4">
+      <div className="flex items-center gap-1 rounded-full border border-border/60 bg-surface/80 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-md">
         <a
           href="#hero"
-          className="font-mono text-sm font-medium tracking-tight text-foreground"
+          className="px-3 py-1.5 text-sm font-semibold tracking-tight text-foreground"
         >
           {profile.brand}
         </a>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
-          {navLinks.map((link, index) => (
+          {navLinks.map((link) => (
             <a
               key={link.id}
               href={`#${link.id}`}
               aria-current={activeId === link.id ? "true" : undefined}
               className={clsx(
-                "flex items-center gap-2 border-b-2 px-2 py-2 text-sm transition-colors",
+                "rounded-full px-3 py-1.5 text-sm transition-colors",
                 activeId === link.id
-                  ? "border-accent text-foreground"
-                  : "border-transparent text-muted hover:text-foreground",
+                  ? "bg-accent/10 text-accent"
+                  : "text-muted hover:text-foreground",
               )}
             >
-              <span className="font-mono text-xs text-accent">
-                {String(index + 1).padStart(2, "0")}
-              </span>
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 pl-1">
           <ThemeToggle />
           <button
             type="button"
             onClick={() => setOpen((prev) => !prev)}
             aria-expanded={open}
             aria-controls="mobile-nav"
-            className="inline-flex size-9 items-center justify-center border border-border text-foreground md:hidden"
+            className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-background/60 hover:text-foreground md:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
           >
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
@@ -73,25 +70,22 @@ export function Nav() {
         <nav
           id="mobile-nav"
           aria-label="Mobile"
-          className="border-t border-border bg-background px-4 py-2 md:hidden"
+          className="w-full max-w-xs rounded-3xl border border-border bg-surface/95 p-2 shadow-xl backdrop-blur-md md:hidden"
         >
           <ul className="flex flex-col">
-            {navLinks.map((link, index) => (
-              <li key={link.id} className="border-b border-border last:border-b-0">
+            {navLinks.map((link) => (
+              <li key={link.id}>
                 <a
                   href={`#${link.id}`}
                   onClick={() => setOpen(false)}
                   aria-current={activeId === link.id ? "true" : undefined}
                   className={clsx(
-                    "flex items-center gap-3 py-3 text-sm",
+                    "block rounded-2xl px-4 py-3 text-sm",
                     activeId === link.id
-                      ? "text-foreground"
+                      ? "bg-accent/10 text-accent"
                       : "text-muted hover:text-foreground",
                   )}
                 >
-                  <span className="font-mono text-xs text-accent">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
                   {link.label}
                 </a>
               </li>

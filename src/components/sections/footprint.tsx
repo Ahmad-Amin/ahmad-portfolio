@@ -5,22 +5,22 @@ import { YoutubeRow } from "@/components/footprint/youtube-row";
 
 export function Footprint() {
   return (
-    <Section id="footprint" labelledBy="footprint-heading" variant="bleed">
+    <Section id="footprint" labelledBy="footprint-heading">
       <h2
         id="footprint-heading"
-        className="text-display-sm font-serif font-black tracking-tighter text-foreground"
+        className="text-display-sm font-semibold tracking-tight text-foreground"
       >
         Digital Footprint
       </h2>
-      <p className="mt-4 max-w-xl text-lg text-muted">
+      <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted">
         Everywhere I build, ship, and share — pulled live, not just claimed.
       </p>
 
-      <ol className="-mx-4 mt-12 list-none border-t-2 border-foreground sm:-mx-6 lg:-mx-8">
-        <GithubRow index={0} />
-        <NpmRow index={1} />
-        <YoutubeRow index={2} />
-      </ol>
+      <ul className="mt-12 flex list-none flex-col gap-6 sm:gap-8">
+        <GithubRow />
+        <NpmRow />
+        <YoutubeRow />
+      </ul>
     </Section>
   );
 }

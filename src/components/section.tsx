@@ -36,22 +36,22 @@ export function Section({
     <motion.section
       id={id}
       aria-labelledby={labelledBy}
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       onViewportEnter={() => setRevealed(true)}
       transition={{
-        duration: prefersReducedMotion ? 0 : 0.6,
-        ease: [0.22, 1, 0.36, 1],
+        duration: prefersReducedMotion ? 0 : 0.5,
+        ease: [0.16, 1, 0.3, 1],
       }}
-      className={clsx("scroll-mt-20 py-20 sm:py-28", className)}
+      className={clsx("scroll-mt-24 py-24 sm:py-32 lg:py-40", className)}
     >
       <div
         style={{
           clipPath: revealed ? "inset(0 0 0% 0)" : "inset(0 0 100% 0)",
           transition: prefersReducedMotion
             ? "none"
-            : "clip-path 0.6s cubic-bezier(0.22,1,0.36,1)",
+            : "clip-path 0.5s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
         <div
