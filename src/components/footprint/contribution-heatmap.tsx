@@ -4,8 +4,8 @@ const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-const CELL = 11;
 const GAP = 3;
+const MIN_WIDTH = 600;
 const LEVEL_COLORS = [
   "var(--border)",
   "color-mix(in oklch, var(--accent) 25%, var(--surface))",
@@ -41,14 +41,14 @@ export function ContributionHeatmap({ days }: ContributionHeatmapProps) {
   }
 
   return (
-    <div className="mt-6 overflow-x-auto">
-      <div className="inline-block">
-        <div className="relative h-4" style={{ width: weekCount * (CELL + GAP) }}>
+    <div className="mt-6 w-full overflow-x-auto">
+      <div style={{ minWidth: MIN_WIDTH }}>
+        <div className="relative h-4 w-full">
           {monthLabels.map(({ col, label }) => (
             <span
               key={`${col}-${label}`}
               className="absolute font-mono text-[10px] text-muted uppercase"
-              style={{ left: col * (CELL + GAP) }}
+              style={{ left: `${(col / weekCount) * 100}%` }}
             >
               {label}
             </span>
@@ -56,10 +56,10 @@ export function ContributionHeatmap({ days }: ContributionHeatmapProps) {
         </div>
 
         <div
-          className="mt-1 grid grid-flow-col"
+          className="mt-1 grid w-full grid-flow-col"
           style={{
-            gridTemplateColumns: `repeat(${weekCount}, ${CELL}px)`,
-            gridTemplateRows: `repeat(7, ${CELL}px)`,
+            gridTemplateColumns: `repeat(${weekCount}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(7, auto)`,
             gap: `${GAP}px`,
           }}
         >
@@ -68,10 +68,11 @@ export function ContributionHeatmap({ days }: ContributionHeatmapProps) {
               <div
                 key={day.date}
                 title={`${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date}`}
+                className="aspect-square w-full"
                 style={{ backgroundColor: LEVEL_COLORS[day.level] ?? LEVEL_COLORS[0] }}
               />
             ) : (
-              <div key={`pad-${i}`} aria-hidden="true" />
+              <div key={`pad-${i}`} aria-hidden="true" className="aspect-square w-full" />
             ),
           )}
         </div>
