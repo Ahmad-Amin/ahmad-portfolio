@@ -1,34 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio
 
-## Getting Started
+A single-page personal portfolio built with Next.js, TypeScript, and Tailwind CSS. Clean, minimal, responsive, with a light/dark theme toggle.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Adding your real content
 
-## Learn More
+Everything on the site is pulled from five data files — edit these, no need to touch the components:
 
-To learn more about Next.js, take a look at the following resources:
+| File | Controls |
+|---|---|
+| `src/data/profile.ts` | Name, role, tagline, bio paragraphs, email, location |
+| `src/data/services.ts` | The service cards (icon, title, description) |
+| `src/data/projects.ts` | Project cards (title, description, tags, live/repo links, optional image) |
+| `src/data/socials.ts` | Social links shown in the nav-adjacent contact section and footer |
+| `src/data/nav-links.ts` | Nav labels and the section ids they scroll to |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Projects without an `image` fall back to a generated gradient placeholder (`src/components/placeholder-art.tsx`) — add an image path (e.g. a file in `public/`) once you have real screenshots.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The accent color and the rest of the theme live in `src/app/globals.css` as CSS variables (`--accent`, `--background`, `--surface`, etc.), one value per light/dark mode — change those two blocks to re-theme the whole site.
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Next.js (App Router) · TypeScript · Tailwind CSS v4 · Motion (scroll animations) · next-themes (dark mode) · lucide-react (icons)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploying
+
+Push to GitHub and import the repo at [vercel.com/new](https://vercel.com/new) — it's zero-config, Vercel auto-detects Next.js.
