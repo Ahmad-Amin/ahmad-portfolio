@@ -1,19 +1,7 @@
-import { socials } from "@/data/socials";
 import { featuredRepos } from "@/data/featured-repos";
-import { getGithubActivity } from "@/lib/github";
+import { getGithubActivity, getGithubUsername } from "@/lib/github";
 import { ContributionHeatmap } from "@/components/footprint/contribution-heatmap";
 import { Panel } from "@/components/panel";
-
-function getGithubUsername(): string | null {
-  const github = socials.find((social) => social.platform === "GitHub");
-  if (!github) return null;
-
-  try {
-    return new URL(github.url).pathname.replaceAll("/", "");
-  } catch {
-    return null;
-  }
-}
 
 export async function GithubRow() {
   const username = getGithubUsername();

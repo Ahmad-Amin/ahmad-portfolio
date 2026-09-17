@@ -5,6 +5,7 @@ import { MotionConfig } from "motion/react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
+import { ChatWidget } from "@/components/chat-widget";
 import { profile } from "@/data/profile";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Nav />
             <main id="main-content">{children}</main>
             <Footer />
+            <ChatWidget />
           </MotionConfig>
         </ThemeProvider>
         <Analytics />

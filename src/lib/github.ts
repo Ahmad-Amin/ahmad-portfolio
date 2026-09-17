@@ -1,3 +1,5 @@
+import { socials } from "@/data/socials";
+
 export interface ContributionDay {
   date: string;
   count: number;
@@ -19,6 +21,17 @@ export interface GithubActivity {
   totalContributions: number;
   days: ContributionDay[];
   topRepos: TopRepo[];
+}
+
+export function getGithubUsername(): string | null {
+  const github = socials.find((social) => social.platform === "GitHub");
+  if (!github) return null;
+
+  try {
+    return new URL(github.url).pathname.replaceAll("/", "");
+  } catch {
+    return null;
+  }
 }
 
 const CONTRIBUTION_LEVEL: Record<string, number> = {
