@@ -1,5 +1,5 @@
 import { featuredRepos } from "@/data/featured-repos";
-import { getGithubActivity, getGithubUsername } from "@/lib/github";
+import { getGithubActivity, getGithubUsername, MIN_CONTRIBUTION_YEAR } from "@/lib/github";
 import { ContributionHeatmap } from "@/components/footprint/contribution-heatmap";
 import { Panel } from "@/components/panel";
 
@@ -16,23 +16,14 @@ export async function GithubRow() {
 
       {activity ? (
         <>
-          <ul className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
-            {[
-              { label: "Contributions", value: activity.totalContributions },
-              { label: "Repos", value: activity.publicRepos },
-              { label: "Stars", value: activity.stars },
-              { label: "Followers", value: activity.followers },
-            ].map((item) => (
-              <li key={item.label} className="text-sm">
-                <span className="font-mono tabular-nums text-accent">
-                  {item.value.toLocaleString()}
-                </span>{" "}
-                <span className="font-medium text-muted">{item.label}</span>
-              </li>
-            ))}
-          </ul>
-
-          <ContributionHeatmap days={activity.days} />
+          <ContributionHeatmap
+            repos={activity.publicRepos}
+            stars={activity.stars}
+            initialYear={new Date().getUTCFullYear()}
+            initialDays={activity.days}
+            initialTotalContributions={activity.totalContributions}
+            minYear={MIN_CONTRIBUTION_YEAR}
+          />
 
           {activity.topRepos.length > 0 && (
             <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

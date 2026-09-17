@@ -1,18 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  Globe,
-  Puzzle,
-  Smartphone,
-  type LucideIcon,
-} from "lucide-react";
-import { liveProjects, type LiveProject, type ProjectPlatform } from "@/data/live-projects";
-import { Panel } from "@/components/panel";
-import { Modal } from "@/components/modal";
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, ExternalLink, Globe, Puzzle, Smartphone, type LucideIcon } from 'lucide-react';
+import { liveProjects, type LiveProject, type ProjectPlatform } from '@/data/live-projects';
+import { Panel } from '@/components/panel';
+import { Modal } from '@/components/modal';
 
 const PLATFORM_ICON: Record<ProjectPlatform, LucideIcon> = {
   web: Globe,
@@ -21,23 +13,23 @@ const PLATFORM_ICON: Record<ProjectPlatform, LucideIcon> = {
 };
 
 const PLATFORM_LABEL: Record<ProjectPlatform, string> = {
-  web: "Web app",
-  extension: "Chrome extension",
-  app: "Mobile app",
+  web: 'Web app',
+  extension: 'Chrome extension',
+  app: 'Mobile app',
 };
 
 const PLATFORM_CTA: Record<ProjectPlatform, string> = {
-  web: "Visit site",
-  extension: "View on Chrome Web Store",
-  app: "View on Google Play",
+  web: 'Visit site',
+  extension: 'View on Chrome Web Store',
+  app: 'View on Google Play',
 };
 
 // Web/extension screenshots are naturally landscape; app screenshots are
 // portrait phone captures, which get badly cropped by a 16:9 box.
 const PLATFORM_ASPECT: Record<ProjectPlatform, string> = {
-  web: "aspect-video",
-  extension: "aspect-video",
-  app: "aspect-[9/16]",
+  web: 'aspect-video',
+  extension: 'aspect-video',
+  app: 'aspect-[9/16]',
 };
 
 function ProjectThumbnail({ project }: { project: LiveProject }) {
@@ -47,11 +39,7 @@ function ProjectThumbnail({ project }: { project: LiveProject }) {
     return (
       <div className="aspect-video w-full overflow-hidden rounded-2xl bg-background transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={project.cover}
-          alt=""
-          className="size-full object-cover transition-opacity group-hover:opacity-80"
-        />
+        <img src={project.cover} alt="" className="size-full object-cover transition-opacity group-hover:opacity-80" />
       </div>
     );
   }
@@ -65,15 +53,7 @@ function ProjectThumbnail({ project }: { project: LiveProject }) {
   );
 }
 
-function CarouselDots({
-  count,
-  index,
-  onSelect,
-}: {
-  count: number;
-  index: number;
-  onSelect: (i: number) => void;
-}) {
+function CarouselDots({ count, index, onSelect }: { count: number; index: number; onSelect: (i: number) => void }) {
   if (count <= 1) return null;
 
   return (
@@ -84,9 +64,7 @@ function CarouselDots({
           type="button"
           onClick={() => onSelect(i)}
           aria-label={`Show image ${i + 1}`}
-          className={`h-1.5 rounded-full transition-all ${
-            i === index ? "w-4 bg-accent" : "w-1.5 bg-border"
-          }`}
+          className={`h-1.5 rounded-full transition-all ${i === index ? 'w-4 bg-accent' : 'w-1.5 bg-border'}`}
         />
       ))}
     </div>
@@ -107,19 +85,12 @@ function ImageCarousel({ project }: { project: LiveProject }) {
 
   // A full-width portrait box would tower over the rest of the modal, so
   // phone screenshots get a centered, phone-proportioned width instead.
-  const containerWidth = project.platform === "app" ? "mx-auto max-w-[260px]" : "w-full";
+  const containerWidth = project.platform === 'app' ? 'mx-auto max-w-[260px]' : 'w-full';
 
   return (
     <div>
-      <div
-        className={`relative ${PLATFORM_ASPECT[project.platform]} ${containerWidth} overflow-hidden rounded-2xl bg-background`}
-      >
-        <button
-          type="button"
-          onClick={() => setLightboxOpen(true)}
-          aria-label="Enlarge image"
-          className="block size-full cursor-zoom-in"
-        >
+      <div className={`relative ${PLATFORM_ASPECT[project.platform]} ${containerWidth} overflow-hidden rounded-2xl bg-background`}>
+        <button type="button" onClick={() => setLightboxOpen(true)} aria-label="Enlarge image" className="block size-full cursor-zoom-in">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={images[index]} alt="" className="size-full object-cover" />
         </button>
@@ -157,11 +128,7 @@ function ImageCarousel({ project }: { project: LiveProject }) {
       >
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={images[index]}
-            alt=""
-            className="max-h-[75vh] w-full rounded-xl object-contain"
-          />
+          <img src={images[index]} alt="" className="max-h-[75vh] w-full rounded-xl object-contain" />
 
           {images.length > 1 && (
             <>
@@ -197,25 +164,15 @@ export function LiveProjectsRow() {
   return (
     <Panel as="li">
       <h3 className="text-xl font-semibold text-foreground">Live Projects</h3>
-      <p className="mt-1 text-muted">
-        Shipped products you can try right now — a web app, a browser extension, and a mobile app.
-      </p>
+      <p className="mt-1 text-muted">Shipped products you can try right now — a web app, a browser extension, and a mobile app.</p>
 
       <ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
         {liveProjects.map((project) => (
           <li key={project.slug}>
-            <button
-              type="button"
-              onClick={() => setSelected(project)}
-              className="group block w-full text-left"
-            >
+            <button type="button" onClick={() => setSelected(project)} className="group block w-full text-left cursor-pointer">
               <ProjectThumbnail project={project} />
-              <p className="mt-3 text-sm font-semibold text-foreground group-hover:text-accent">
-                {project.title}
-              </p>
-              {project.tagline && (
-                <p className="mt-1 line-clamp-2 text-xs text-muted">{project.tagline}</p>
-              )}
+              <p className="mt-3 text-sm font-semibold text-foreground group-hover:text-accent">{project.title}</p>
+              {project.tagline && <p className="mt-1 line-clamp-2 text-xs text-muted">{project.tagline}</p>}
               <span className="mt-2 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
                 {PLATFORM_LABEL[project.platform]}
               </span>
@@ -227,7 +184,7 @@ export function LiveProjectsRow() {
       <Modal
         open={selected !== null}
         onClose={() => setSelected(null)}
-        ariaLabel={selected ? selected.title : "Project details"}
+        ariaLabel={selected ? selected.title : 'Project details'}
         maxWidthClassName="max-w-2xl"
       >
         {selected && (
@@ -241,9 +198,7 @@ export function LiveProjectsRow() {
               </div>
               <div>
                 <h4 className="text-xl font-semibold text-foreground">{selected.title}</h4>
-                <p className="text-xs font-medium text-muted">
-                  {PLATFORM_LABEL[selected.platform]}
-                </p>
+                <p className="text-xs font-medium text-muted">{PLATFORM_LABEL[selected.platform]}</p>
               </div>
             </div>
 
@@ -259,16 +214,11 @@ export function LiveProjectsRow() {
             )}
 
             {selected.technologies.length > 0 && (
-              <div className={selected.description ? "mt-6 border-t border-border pt-5" : "mt-6"}>
-                <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-                  Built with
-                </p>
+              <div className={selected.description ? 'mt-6 border-t border-border pt-5' : 'mt-6'}>
+                <p className="text-xs font-semibold tracking-wide text-muted uppercase">Built with</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selected.technologies.map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent"
-                    >
+                    <span key={tech} className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
                       {tech}
                     </span>
                   ))}
