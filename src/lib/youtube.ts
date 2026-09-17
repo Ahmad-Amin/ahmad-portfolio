@@ -24,6 +24,48 @@ function extract(pattern: RegExp, text: string): string | null {
   return text.match(pattern)?.[1] ?? null;
 }
 
+export interface ChannelStats {
+  // null when the channel owner has hidden their subscriber count.
+  subscribers: number | null;
+  videos: number;
+  views: number;
+}
+
+export async function getChannelStats(channelId: string): Promise<ChannelStats | null> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) return null;
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${key}`,
+      { next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as {
+      items?: {
+        statistics: {
+          subscriberCount?: string;
+          hiddenSubscriberCount?: boolean;
+          videoCount: string;
+          viewCount: string;
+        };
+      }[];
+    };
+
+    const stats = json.items?.[0]?.statistics;
+    if (!stats) return null;
+
+    return {
+      subscribers: stats.hiddenSubscriberCount ? null : Number(stats.subscriberCount ?? 0),
+      videos: Number(stats.videoCount),
+      views: Number(stats.viewCount),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getLatestVideos(
   channelId: string,
   limit = 3,

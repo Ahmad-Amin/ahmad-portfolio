@@ -1,9 +1,28 @@
-import { getLatestVideos, TECHWITHSWAG_CHANNEL_ID } from "@/lib/youtube";
+import { getChannelStats, getLatestVideos, TECHWITHSWAG_CHANNEL_ID } from "@/lib/youtube";
 import { Panel } from "@/components/panel";
 
+// Matches YouTube's own display convention: ~3 significant figures with a
+// K/M/B suffix (3,150 -> "3.15K", 18,117 -> "18.1K"), plain below 1,000.
+function formatCompactNumber(value: number): string {
+  const units: { threshold: number; suffix: string }[] = [
+    { threshold: 1_000_000_000, suffix: "B" },
+    { threshold: 1_000_000, suffix: "M" },
+    { threshold: 1_000, suffix: "K" },
+  ];
+
+  for (const { threshold, suffix } of units) {
+    if (value >= threshold) {
+      const scaled = value / threshold;
+      const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+      return `${scaled.toFixed(precision)}${suffix}`;
+    }
+  }
+
+  return value.toString();
+}
+
 function formatViews(views: number): string {
-  if (views >= 1000) return `${(views / 1000).toFixed(views >= 10000 ? 0 : 1)}K views`;
-  return `${views} views`;
+  return `${formatCompactNumber(views)} views`;
 }
 
 function formatDate(iso: string): string {
@@ -12,7 +31,10 @@ function formatDate(iso: string): string {
 }
 
 export async function YoutubeRow() {
-  const videos = await getLatestVideos(TECHWITHSWAG_CHANNEL_ID);
+  const [videos, stats] = await Promise.all([
+    getLatestVideos(TECHWITHSWAG_CHANNEL_ID),
+    getChannelStats(TECHWITHSWAG_CHANNEL_ID),
+  ]);
 
   return (
     <Panel as="li">
@@ -21,16 +43,35 @@ export async function YoutubeRow() {
         Videos where I break down what I&apos;m building and what I&apos;ve learned.
       </p>
 
+      {stats && (
+        <ul className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+          {[
+            stats.subscribers !== null ? { label: "Subscribers", value: stats.subscribers } : null,
+            { label: "Videos", value: stats.videos },
+            { label: "Views", value: stats.views },
+          ]
+            .filter((item) => item !== null)
+            .map((item) => (
+              <li key={item.label} className="text-sm">
+                <span className="font-mono tabular-nums text-accent">
+                  {formatCompactNumber(item.value)}
+                </span>{" "}
+                <span className="font-medium text-muted">{item.label}</span>
+              </li>
+            ))}
+        </ul>
+      )}
+
       {!videos && (
-        <p className="mt-6 text-sm text-muted">Video data is temporarily unavailable.</p>
+        <p className="mt-8 text-sm text-muted">Video data is temporarily unavailable.</p>
       )}
 
       {videos && videos.length === 0 && (
-        <p className="mt-6 text-sm text-muted">No videos published yet.</p>
+        <p className="mt-8 text-sm text-muted">No videos published yet.</p>
       )}
 
       {videos && videos.length > 0 && (
-        <ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
           {videos.map((video) => (
             <li key={video.id}>
               <a href={video.url} target="_blank" rel="noopener noreferrer" className="group block">
