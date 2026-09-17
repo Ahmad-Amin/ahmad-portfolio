@@ -32,23 +32,37 @@ const PLATFORM_ASPECT: Record<ProjectPlatform, string> = {
   app: 'aspect-[9/16]',
 };
 
+function LiveBadge() {
+  return (
+    <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 backdrop-blur-sm">
+      <span className="relative flex size-1.5">
+        <span className="absolute inline-flex size-full motion-safe:animate-ping rounded-full bg-accent opacity-75" />
+        <span className="relative inline-flex size-1.5 rounded-full bg-accent" />
+      </span>
+      <span className="text-[10px] font-semibold tracking-wide text-white uppercase">Live</span>
+    </div>
+  );
+}
+
 function ProjectThumbnail({ project }: { project: LiveProject }) {
   const Icon = PLATFORM_ICON[project.platform];
 
   if (project.cover) {
     return (
-      <div className="aspect-video w-full overflow-hidden rounded-2xl bg-background transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-background transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={project.cover} alt="" className="size-full object-cover transition-opacity group-hover:opacity-80" />
+        <LiveBadge />
       </div>
     );
   }
 
   return (
-    <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-linear-to-br from-accent/15 via-accent/5 to-transparent transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
+    <div className="relative flex aspect-video w-full items-center justify-center rounded-2xl bg-linear-to-br from-accent/15 via-accent/5 to-transparent transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
       <div className="flex size-14 items-center justify-center rounded-2xl bg-surface shadow-[0_8px_24px_rgb(0,0,0,0.1)] transition-opacity group-hover:opacity-80">
         <Icon className="size-6 text-accent" />
       </div>
+      <LiveBadge />
     </div>
   );
 }

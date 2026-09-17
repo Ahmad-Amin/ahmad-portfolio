@@ -1,11 +1,27 @@
 import { featuredRepos } from "@/data/featured-repos";
-import { getGithubActivity, getGithubUsername, MIN_CONTRIBUTION_YEAR } from "@/lib/github";
+import {
+  getContributionsForYear,
+  getGithubActivity,
+  getGithubUsername,
+  MIN_CONTRIBUTION_YEAR,
+} from "@/lib/github";
 import { ContributionHeatmap } from "@/components/footprint/contribution-heatmap";
 import { Panel } from "@/components/panel";
 
 export async function GithubRow() {
   const username = getGithubUsername();
-  const activity = username ? await getGithubActivity(username, featuredRepos) : null;
+  const currentYear = new Date().getUTCFullYear();
+
+  // Fetch the current year through the exact same function every other year
+  // switch uses, rather than getGithubActivity's default "rolling last 12
+  // months" window — otherwise the initial load and re-selecting the same
+  // year later show two different date ranges under the same "2026" label.
+  const [activity, currentYearContributions] = username
+    ? await Promise.all([
+        getGithubActivity(username, featuredRepos),
+        getContributionsForYear(username, currentYear),
+      ])
+    : [null, null];
 
   return (
     <Panel as="li">
@@ -19,9 +35,11 @@ export async function GithubRow() {
           <ContributionHeatmap
             repos={activity.publicRepos}
             stars={activity.stars}
-            initialYear={new Date().getUTCFullYear()}
-            initialDays={activity.days}
-            initialTotalContributions={activity.totalContributions}
+            initialYear={currentYear}
+            initialDays={currentYearContributions?.days ?? activity.days}
+            initialTotalContributions={
+              currentYearContributions?.totalContributions ?? activity.totalContributions
+            }
             minYear={MIN_CONTRIBUTION_YEAR}
           />
 
