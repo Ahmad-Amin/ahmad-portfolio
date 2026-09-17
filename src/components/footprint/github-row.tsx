@@ -1,10 +1,6 @@
 import { featuredRepos } from "@/data/featured-repos";
-import {
-  getContributionsForYear,
-  getGithubActivity,
-  getGithubUsername,
-  MIN_CONTRIBUTION_YEAR,
-} from "@/lib/github";
+import { getGithubActivity, getGithubUsername, MIN_CONTRIBUTION_YEAR } from "@/lib/github";
+import { getCombinedContributionsForYear } from "@/lib/contributions";
 import { ContributionHeatmap } from "@/components/footprint/contribution-heatmap";
 import { Panel } from "@/components/panel";
 
@@ -13,13 +9,14 @@ export async function GithubRow() {
   const currentYear = new Date().getUTCFullYear();
 
   // Fetch the current year through the exact same function every other year
-  // switch uses, rather than getGithubActivity's default "rolling last 12
-  // months" window — otherwise the initial load and re-selecting the same
-  // year later show two different date ranges under the same "2026" label.
+  // switch uses (including the GitHub+GitLab merge for the current year),
+  // rather than getGithubActivity's default "rolling last 12 months" window
+  // — otherwise the initial load and re-selecting the same year later show
+  // different data under the same "2026" label.
   const [activity, currentYearContributions] = username
     ? await Promise.all([
         getGithubActivity(username, featuredRepos),
-        getContributionsForYear(username, currentYear),
+        getCombinedContributionsForYear(username, currentYear),
       ])
     : [null, null];
 

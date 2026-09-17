@@ -1,4 +1,5 @@
-import { getContributionsForYear, getGithubUsername, MIN_CONTRIBUTION_YEAR } from "@/lib/github";
+import { getGithubUsername, MIN_CONTRIBUTION_YEAR } from "@/lib/github";
+import { getCombinedContributionsForYear } from "@/lib/contributions";
 
 export async function GET(request: Request) {
   const yearParam = new URL(request.url).searchParams.get("year");
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     return new Response("GitHub username not configured.", { status: 503 });
   }
 
-  const contributions = await getContributionsForYear(username, year);
+  const contributions = await getCombinedContributionsForYear(username, year);
   if (!contributions) {
     return new Response("GitHub contributions are temporarily unavailable.", { status: 503 });
   }
