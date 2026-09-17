@@ -2,6 +2,7 @@ import { Section } from "@/components/section";
 import { GithubRow } from "@/components/footprint/github-row";
 import { NpmRow } from "@/components/footprint/npm-row";
 import { YoutubeRow } from "@/components/footprint/youtube-row";
+import { LiveProjectsRow } from "@/components/footprint/live-projects-row";
 
 export function Footprint() {
   return (
@@ -20,6 +21,7 @@ export function Footprint() {
         <GithubRow />
         <NpmRow />
         <YoutubeRow />
+        <LiveProjectsRow />
       </ul>
     </Section>
   );
