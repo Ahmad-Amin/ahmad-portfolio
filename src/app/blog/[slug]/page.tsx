@@ -5,6 +5,7 @@ import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
 import { mdxComponents } from "@/components/mdx-components";
 import { Section } from "@/components/section";
 import { RecentPosts } from "@/components/blog/recent-posts";
+import { siteUrl } from "@/lib/site";
 
 const RECENT_POSTS_COUNT = 5;
 
@@ -21,14 +22,24 @@ export async function generateMetadata({
   const post = getPostBySlug(slug);
   if (!post) return {};
 
+  const url = `${siteUrl}/blog/${post.slug}`;
+
   return {
     title: post.title,
     description: post.excerpt,
+    alternates: { canonical: url },
     openGraph: {
       title: post.title,
       description: post.excerpt,
       type: "article",
       publishedTime: post.date,
+      url,
+      siteName: "TechWithSwag",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
     },
   };
 }
