@@ -16,4 +16,13 @@ export const mdxComponents: MDXComponents = {
   ul: (props) => <ul className="mt-6 ml-6 list-disc space-y-2 text-lg text-muted" {...props} />,
   ol: (props) => <ol className="mt-6 ml-6 list-decimal space-y-2 text-lg text-muted" {...props} />,
   blockquote: (props) => <blockquote className="mt-6 border-l-2 border-accent/40 pl-4 text-lg italic text-muted" {...props} />,
+  img: ({ alt = "", ...props }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      alt={alt}
+      className="mt-6 w-full rounded-2xl border border-border"
+      loading="lazy"
+      {...props}
+    />
+  ),
 };

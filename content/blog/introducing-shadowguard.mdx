@@ -1,0 +1,72 @@
+---
+title: "ShadowGuard: catching secrets before they reach ChatGPT, Claude, or Gemini"
+date: "2026-09-18"
+excerpt: "Why I built a Chrome extension that scans your prompts for API keys, credentials, and personal data before they ever leave your browser — and how the detection actually works."
+tags: ["shadowguard", "chrome-extension", "security"]
+---
+
+Most of us paste things into AI chat tools without thinking twice — a stack trace,
+a config file, a customer record you're asking it to reformat. Every so often
+that paste has a live API key in it, or a database connection string, or a
+customer's IBAN. Once it's sent, it's sent. There's no undo on a prompt.
+
+That's the problem [ShadowGuard](https://chromewebstore.google.com/detail/shadowguard-%E2%80%94-ai-data-pro/bbidfhhclnjijjediipaphngkkecmpab)
+solves: it watches what you type into ChatGPT, Claude, and Gemini in real time,
+and catches secrets and personal data before the request goes out.
+
+![ShadowGuard redacting an email address in an AI chat input before it's sent](/shadow-guard/image1.png)
+
+## Detection has to work on things that don't announce themselves
+
+An AWS key or a Stripe secret is easy — they have a recognizable prefix and
+shape, so a regex catches them reliably. But plenty of sensitive values don't
+look like anything in particular. A raw 40-character token, a random-looking
+internal ID, a JWT with no obvious markers — these need something better than
+pattern matching alone.
+
+ShadowGuard combines three techniques:
+
+- **Regex pattern matching** for known credential formats (API keys, private
+  keys, connection strings, and so on).
+- **Checksum validation** — Luhn for credit card numbers, IBAN's own check
+  digits, ABA routing number checksums — so it can tell a real bank account
+  number from a random 16-digit string that just happens to look like one.
+  This is what keeps false positives down; matching digits alone would flag
+  half the numbers on a page.
+- **Entropy analysis** for the things with no fixed shape: unlabeled secrets
+  that are just high-randomness strings sitting in the middle of a message.
+
+Depending on how severe a match is, ShadowGuard either redacts it in place
+with a reversible, session-local placeholder — `[EMAIL_1]`, `[IBAN_1]`,
+`[BANK_ACCOUNT_1]` — or blocks the send outright and asks you to confirm.
+
+![ShadowGuard redacting a bank routing number and IBAN in a ChatGPT prompt, with a review-before-sending prompt](/shadow-guard/image2.png)
+
+## Does the model actually never see the real value?
+
+The redaction happening client-side is easy to claim and worth actually
+checking. So after sending a message with a routing number and IBAN
+redacted, I asked ChatGPT to read back — character by character — exactly
+what it had received:
+
+![ChatGPT confirming it only ever received the placeholder tokens BANK_ACCOUNT_1 and IBAN_1, never the real routing number or IBAN](/shadow-guard/image3.png)
+
+It could only echo back `[BANK_ACCOUNT_1]` and `[IBAN_1]`. The real numbers
+never left the browser — which is the whole point. ShadowGuard doesn't proxy
+your traffic, doesn't phone home, and doesn't send prompt content anywhere
+except the AI provider itself, minus whatever it just redacted.
+
+## How it's built
+
+It's a Manifest V3 Chrome extension, written in TypeScript and bundled with
+Vite. All of the scanning — regex, checksums, entropy scoring — runs in
+content scripts on-device, which is what makes the "never transmitted
+anywhere" claim actually true rather than a privacy policy you have to trust.
+
+It's shipped on the Chrome Web Store as a one-time purchase, with license
+activation handled through Lemon Squeezy rather than a subscription — you pay
+once and it keeps working.
+
+If you use AI chat tools daily and have ever hit send half a second before
+realizing what you just pasted, [ShadowGuard](https://chromewebstore.google.com/detail/shadowguard-%E2%80%94-ai-data-pro/bbidfhhclnjijjediipaphngkkecmpab)
+is built for exactly that moment.

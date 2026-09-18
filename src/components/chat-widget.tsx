@@ -23,6 +23,46 @@ function markAutoOpenSeen() {
   }
 }
 
+// Lazily created and reused so later beeps don't each spin up a new context.
+let sharedAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioContextCtor =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!sharedAudioContext) sharedAudioContext = new AudioContextCtor();
+  return sharedAudioContext;
+}
+
+// A soft, short chime — not a harsh alert beep. Browsers suspend audio until
+// the visitor has interacted with the page at least once, so this silently
+// no-ops if that hasn't happened yet by the time auto-open fires.
+function playChime() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const fire = () => {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+    oscillator.connect(gain).connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.4);
+  };
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(fire).catch(() => {});
+  } else {
+    fire();
+  }
+}
+
 // Compact markdown styling scaled for a narrow chat bubble (text-sm, tight
 // spacing) rather than the article-width tokens in mdx-components.tsx.
 const markdownComponents = {
@@ -128,6 +168,21 @@ export function ChatWidget() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
+  // Browsers won't play audio until the visitor has interacted with the page
+  // at least once — warm up the audio context on the first such interaction
+  // so it's ready by the time the auto-open timer fires.
+  useEffect(() => {
+    function unlock() {
+      getAudioContext()?.resume().catch(() => {});
+    }
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   // Nudge first-time visitors once per browser session: pulse the launcher,
   // then open the panel on its own after a short delay — unless they've
   // already opened (or seen this) it this session, or acted before it fired.
@@ -146,6 +201,7 @@ export function ChatWidget() {
       setPulse(false);
       if (!interactedRef.current) {
         setOpen(true);
+        playChime();
         markAutoOpenSeen();
       }
     }, AUTO_OPEN_DELAY_MS);
