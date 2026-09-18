@@ -1,0 +1,79 @@
+---
+title: "ReactForm: build a form, publish a link, or export the React code"
+date: "2026-09-18"
+excerpt: "A form builder for React and Next.js apps — drag fields into sections, publish a shareable link, or export a clean component. No backend, no boilerplate."
+tags: ["reactform", "saas", "react"]
+---
+
+Every side project eventually needs a form — a contact form, a signup form, a
+job application. And it's always the same slog: stand up an endpoint, wire up
+email delivery, add validation, then restyle the inputs so they don't look
+like they escaped a different app. For something that's rarely the
+interesting part of the product, it eats a surprising amount of time.
+
+[ReactForm](https://reactform.co) is what I built to skip that slog: drag
+fields into sections, publish with a shareable link and start collecting
+responses immediately — or export a clean React / Next.js component and drop
+it straight into your own codebase. No backend either way.
+
+![ReactForm landing page: build React forms and ship in minutes](/react-form/image1.png)
+
+## Two ways to ship the same form
+
+Most form tools force a choice up front: a hosted form with someone else's
+styling, or a code snippet you have to wire up yourself. ReactForm treats
+those as two exports of the same form instead of two products.
+
+- **Publish** it and get a shareable link, a QR code, and an embed snippet —
+  responses land in a dashboard, no server required.
+- **Export** it as a typed React or Next.js component and own the markup,
+  styling, and submit handler yourself.
+
+Either path starts from the same builder, with 11+ field types (text, email,
+phone with country codes, file upload, rating, checkbox groups, and more)
+across as many sections as the form needs. If you don't want to start from a
+blank canvas, there's a library of ready-made templates — contact forms,
+job applications, event registration, bug reports — each one fully editable
+after you drop it in.
+
+![ReactForm's template gallery, with ready-made forms like contact, job application, and event registration](/react-form/image2.png)
+
+## The builder
+
+The editor is a drag-and-drop canvas on the left, a live preview on the
+right. Fields get dragged into sections, sections get reordered, and every
+field carries its own validation and per-breakpoint column span — so a
+"Full Name" and "Email" pair can sit side by side on desktop and stack on
+mobile without touching CSS. The preview updates as you edit, and `Code` /
+`Export` are one click away from the same screen.
+
+![The ReactForm builder: drag fields into sections on the left, a live preview of the form on the right](/react-form/image3.png)
+
+## Making it match the rest of your site
+
+A form that looks like it was bolted on from a different product is worse
+than no form at all, so most of the settings panel is about disappearing
+into whatever site it's embedded in: input theme (Default, Minimal, Soft,
+Sharp), submit button label and alignment, form width, whether the form
+renders with its own border and shadow or blends flat into the page, a
+transparent-background mode for dark sites, and the option to hide the
+"Powered by ReactForm" footer entirely.
+
+![Form Settings modal showing input theme, submit button, and embedding options](/react-form/image4.png)
+
+## Responses, without standing up a database
+
+Every published form gets a response dashboard for free — a submissions-
+over-time chart, a searchable and date-filterable table of every response,
+and a one-click CSV export. The same screen has the QR code, the embed
+snippet, and a link to the live form, so sharing and reviewing responses
+don't need two different tools.
+
+![A form's response dashboard, showing submissions over time and a table of responses with CSV export](/react-form/image5.png)
+
+## Try it
+
+It's free to start, no credit card required — three forms on the free tier
+is enough to tell whether it fits how you work. If you're tired of rebuilding
+the same contact form for the fifth project in a row, [ReactForm](https://reactform.co)
+is built for exactly that moment.

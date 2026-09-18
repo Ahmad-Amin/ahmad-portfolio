@@ -7,7 +7,7 @@ export function RecentPosts({ posts }: { posts: PostMeta[] }) {
   if (posts.length === 0) return null;
 
   return (
-    <Panel as="nav" aria-label="Recent posts" className="p-6">
+    <Panel as="nav" aria-label="Recent posts" className="p-6" shadow="subtle">
       <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">Recent posts</h2>
       <ul className="mt-4 flex flex-col divide-y divide-border">
         {posts.map((post) => (

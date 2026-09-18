@@ -44,7 +44,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
 
   return (
     <Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
-      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
+      <div className="mx-auto grid max-w-272 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
         <article className="min-w-0">
           <h1
             id="post-heading"
