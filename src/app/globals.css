@@ -3,21 +3,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: oklch(98.86% 0.0026 286.35);
+  --background: oklch(97% 0.012 256);
   --foreground: oklch(23.16% 0.0038 286.10);
-  --surface: oklch(97.07% 0.0027 286.35);
+  --surface: oklch(94% 0.014 256);
   --muted: oklch(53.99% 0.0077 286.14);
-  --border: oklch(86.52% 0.0068 286.26);
+  --border: oklch(86% 0.014 256);
   --accent: oklch(56.29% 0.1933 256.16);
   --accent-foreground: oklch(100% 0 0);
 }
 
 .dark {
-  --background: oklch(0% 0 0);
+  --background: oklch(15% 0.02 256);
   --foreground: oklch(97.07% 0.0027 286.35);
-  --surface: oklch(23.16% 0.0038 286.10);
-  --muted: oklch(62.17% 0.0074 286.18);
-  --border: oklch(38.02% 0.0050 286.16);
+  --surface: oklch(19% 0.02 256);
+  --muted: oklch(62.17% 0.015 256);
+  --border: oklch(32% 0.02 256);
   --accent: oklch(66.90% 0.1808 251.84);
   --accent-foreground: oklch(23.16% 0.0038 286.10);
 }
