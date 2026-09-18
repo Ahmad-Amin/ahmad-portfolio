@@ -23,7 +23,7 @@ export const liveProjects: LiveProject[] = [
   {
     slug: 'reactform',
     title: 'ReactForm',
-    tagline: 'Drag-and-drop form builder for React & Next.js teams',
+    tagline: 'Drag-and-drop form builder for React & Next.js teams — publish a shareable link or export clean, ready-to-use component code.',
     description:
       'A no-code form builder that lets teams design, publish, and manage forms with conditional logic, validation, and a live response dashboard — then export the result as clean, ready-to-use React/Next.js code. Includes Pro plans via Lemon Squeezy billing, white-label embedding for partner platforms, and integrations for lead capture and webhooks.',
     url: 'https://reactform.co/',
