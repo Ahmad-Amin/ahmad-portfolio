@@ -2,6 +2,7 @@ import { profile } from "@/data/profile";
 import { experience } from "@/data/experience";
 import { socials } from "@/data/socials";
 import { featuredRepos } from "@/data/featured-repos";
+import { liveProjects } from "@/data/live-projects";
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
 import { getGithubActivity, getGithubUsername } from "@/lib/github";
 
@@ -18,6 +19,17 @@ async function buildProjectsSection(): Promise<string> {
         `- ${repo.name}${repo.language ? ` (${repo.language})` : ""}: ${repo.description ?? "No description."} — ${repo.url}`,
     )
     .join("\n");
+}
+
+function buildLiveProjectsSection(): string {
+  if (liveProjects.length === 0) return "No shipped products yet.";
+
+  return liveProjects
+    .map(
+      (project) =>
+        `- **${project.title}** (${project.platform}) — ${project.tagline}\n  ${project.description}\n  Try it: ${project.url}\n  Built with: ${project.technologies.join(", ")}`,
+    )
+    .join("\n\n");
 }
 
 function buildExperienceSection(): string {
@@ -78,7 +90,10 @@ Location: ${profile.location}
 ### Work experience
 ${buildExperienceSection()}
 
-### Featured projects (live from GitHub)
+### Shipped products (live, with public links — mention these when relevant, they're the best proof of what I can build)
+${buildLiveProjectsSection()}
+
+### Other GitHub repos (live data, may include smaller/experimental projects not listed above)
 ${projectsSection}
 
 ### Social links
