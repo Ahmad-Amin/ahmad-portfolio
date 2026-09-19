@@ -12,12 +12,14 @@ import { profile } from "@/data/profile";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const firstName = profile.name.split(" ")[0];
-const AUTO_OPEN_DELAY_MS = 2500;
-const AUTO_OPEN_SESSION_KEY = "chat-widget-auto-opened";
+const TEASER_DELAY_MS = 2500;
+const TEASER_VISIBLE_MS = 10000;
+const TEASER_SESSION_KEY = "chat-widget-teaser-shown";
+const CHIME_VOLUME = 0.2;
 
-function markAutoOpenSeen() {
+function markTeaserSeen() {
   try {
-    sessionStorage.setItem(AUTO_OPEN_SESSION_KEY, "1");
+    sessionStorage.setItem(TEASER_SESSION_KEY, "1");
   } catch {
     // sessionStorage unavailable (private mode, etc.) — safe to no-op.
   }
@@ -38,7 +40,7 @@ function getAudioContext(): AudioContext | null {
 
 // A soft, short chime — not a harsh alert beep. Browsers suspend audio until
 // the visitor has interacted with the page at least once, so this silently
-// no-ops if that hasn't happened yet by the time auto-open fires.
+// no-ops if that hasn't happened yet by the time the teaser fires.
 function playChime() {
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -49,7 +51,7 @@ function playChime() {
     oscillator.type = "sine";
     oscillator.frequency.value = 880;
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(CHIME_VOLUME, ctx.currentTime + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
     oscillator.connect(gain).connect(ctx.destination);
     oscillator.start();
@@ -131,6 +133,7 @@ function TypingIndicator() {
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
+  const [teaser, setTeaser] = useState(false);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const interactedRef = useRef(false);
@@ -170,7 +173,7 @@ export function ChatWidget() {
 
   // Browsers won't play audio until the visitor has interacted with the page
   // at least once — warm up the audio context on the first such interaction
-  // so it's ready by the time the auto-open timer fires.
+  // so it's ready by the time the teaser timer fires.
   useEffect(() => {
     function unlock() {
       getAudioContext()?.resume().catch(() => {});
@@ -184,12 +187,12 @@ export function ChatWidget() {
   }, []);
 
   // Nudge first-time visitors once per browser session: pulse the launcher,
-  // then open the panel on its own after a short delay — unless they've
-  // already opened (or seen this) it this session, or acted before it fired.
+  // then pop a small "how can I help?" toast after a short delay — unless
+  // they've already seen it this session, or opened the chat before it fired.
   useEffect(() => {
     let alreadySeen = false;
     try {
-      alreadySeen = sessionStorage.getItem(AUTO_OPEN_SESSION_KEY) === "1";
+      alreadySeen = sessionStorage.getItem(TEASER_SESSION_KEY) === "1";
     } catch {
       alreadySeen = true;
     }
@@ -200,19 +203,26 @@ export function ChatWidget() {
     const timer = setTimeout(() => {
       setPulse(false);
       if (!interactedRef.current) {
-        setOpen(true);
+        setTeaser(true);
         playChime();
-        markAutoOpenSeen();
+        markTeaserSeen();
       }
-    }, AUTO_OPEN_DELAY_MS);
+    }, TEASER_DELAY_MS);
 
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!teaser) return;
+    const timer = setTimeout(() => setTeaser(false), TEASER_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [teaser]);
+
   function toggleOpen() {
     interactedRef.current = true;
     setPulse(false);
-    markAutoOpenSeen();
+    setTeaser(false);
+    markTeaserSeen();
     setOpen((prev) => !prev);
   }
 
@@ -248,41 +258,40 @@ export function ChatWidget() {
                 </div>
               </div>
 
-              <div
-                ref={scrollRef}
-                className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 py-4"
-              >
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={clsx(
-                      "flex",
-                      message.role === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
-                    {message.role === "user" ? (
-                      <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap text-accent-foreground">
-                        {messageText(message.parts)}
-                      </p>
-                    ) : (
-                      <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-2 text-sm text-foreground">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <div className="flex min-h-full flex-col justify-end gap-3 px-4 py-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={clsx(
+                        "flex",
+                        message.role === "user" ? "justify-end" : "justify-start",
+                      )}
+                    >
+                      {message.role === "user" ? (
+                        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap text-accent-foreground">
                           {messageText(message.parts)}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {busy && (
-                  <div className="flex justify-start">
-                    <TypingIndicator />
-                  </div>
-                )}
-                {error && (
-                  <p className="text-xs text-red-500">
-                    Something went wrong — please try again.
-                  </p>
-                )}
+                        </p>
+                      ) : (
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-2 text-sm text-foreground">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {messageText(message.parts)}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {busy && (
+                    <div className="flex justify-start">
+                      <TypingIndicator />
+                    </div>
+                  )}
+                  {error && (
+                    <p className="text-xs text-red-500">
+                      Something went wrong — please try again.
+                    </p>
+                  )}
+                </div>
               </div>
 
               <form
@@ -305,6 +314,45 @@ export function ChatWidget() {
                   <Send className="size-4" />
                 </button>
               </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {teaser && !open && (
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              role="status"
+              className="relative mb-3 ml-auto w-max max-w-[min(18rem,calc(100vw-2rem))] origin-bottom-right"
+            >
+              <button
+                type="button"
+                onClick={toggleOpen}
+                className="flex w-full items-center gap-3 rounded-3xl border border-border bg-surface py-3 pr-10 pl-3 text-left shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-colors hover:border-accent/40"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+                  <Sparkles className="size-4" />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">
+                    Hi, how can I help?
+                  </span>
+                  <span className="block text-xs text-muted">
+                    {`Ask me about ${firstName}'s work or your project.`}
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTeaser(false)}
+                aria-label="Dismiss"
+                className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-full text-muted transition-colors hover:bg-foreground/10 hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
