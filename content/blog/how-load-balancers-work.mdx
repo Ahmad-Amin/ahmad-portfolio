@@ -1,0 +1,206 @@
+---
+title: "Load balancers: how they work, and the gotchas behind most 502s"
+date: "2026-09-19"
+excerpt: "What a load balancer actually does, how Layer 4 and Layer 7 differ, how to pick a balancing algorithm, and the health-check, session, and timeout traps that cause most production 502s."
+tags: ["load-balancing", "devops", "aws"]
+---
+
+One server is easy. You deploy to it, point a domain at it, and you're done.
+Then traffic grows, or you want deploys that don't take the site down, so you
+add a second server — and a new question shows up: which one does a request go
+to?
+
+That's the job of a load balancer. It's also the part of your infrastructure
+you never think about on a platform like Heroku, because the router in front of
+your dynos does it for you. When I moved an app from Heroku to AWS, running on
+ECS behind a load balancer, it stopped being invisible. This is what I'd want
+written down before making that move.
+
+## What a load balancer actually does
+
+It sits between your clients and your servers and does four jobs:
+
+- **Spreads traffic** across a pool of servers so no single one becomes the
+  bottleneck.
+- **Checks health** and stops sending requests to servers that are down.
+- **Gives you one stable address.** DNS points at the load balancer, and the
+  servers behind it can come, go, or be replaced without anyone noticing.
+- **Makes deploys boring.** Take one server out of rotation, update it, put it
+  back, repeat. No downtime.
+
+Most load balancers can also terminate TLS, so your certificates live in one
+place and your servers can speak plain HTTP on the private network.
+
+```
+                   ┌──▶ server 1
+client ──▶ LB ─────┼──▶ server 2
+                   └──▶ server 3
+```
+
+## Layer 4 vs Layer 7
+
+The first decision is how much of each request the load balancer looks at.
+
+- A **Layer 4** load balancer works at the TCP/UDP level. It sees IP addresses
+  and ports, picks a server, and forwards the connection without ever reading
+  the request. It's fast and protocol-agnostic, so it works for databases, game
+  servers, or anything else that isn't HTTP. On AWS this is the Network Load
+  Balancer.
+- A **Layer 7** load balancer understands HTTP. It can read the host, path,
+  headers, and cookies, and route on them. On AWS this is the Application Load
+  Balancer.
+
+For a typical web app or API, you want Layer 7, because it lets one entry point
+front several different services:
+
+```
+                        ┌── /api/*          ──▶ api servers
+client ──▶ ALB ─────────┼── /static/*       ──▶ asset servers
+                        └── everything else ──▶ web servers
+```
+
+Nginx and HAProxy can act as either kind.
+
+## Picking an algorithm
+
+The algorithm decides which server gets the next request. The common ones:
+
+- **Round robin** — each server in turn. It's simple, it's the default almost
+  everywhere, and it's fine when requests cost roughly the same and the servers
+  are the same size.
+- **Weighted round robin** — the same idea, but bigger servers get a
+  proportionally bigger share. Useful when the pool isn't uniform, or when you
+  want to send a small slice of traffic to a new version.
+- **Least connections** — send the request to whichever server has the fewest
+  active connections. This is the better choice when request durations vary a
+  lot, or connections are long-lived (WebSockets, streaming responses), where
+  round robin can pile several slow requests onto one unlucky server. On an AWS
+  ALB the equivalent is called least outstanding requests.
+- **IP hash** — hash the client's IP to pick a server, so the same client keeps
+  landing on the same one. It's a cheap form of stickiness, but everyone behind
+  one office network or mobile carrier hashes to the same server.
+
+Start with round robin, and move to least connections once you notice uneven
+load. Here's what that looks like in Nginx:
+
+```nginx
+upstream app {
+    least_conn;
+    server 10.0.1.10:3000 max_fails=3 fail_timeout=30s;
+    server 10.0.1.11:3000 max_fails=3 fail_timeout=30s;
+    server 10.0.1.12:3000 max_fails=3 fail_timeout=30s weight=2;
+}
+
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+The third server has `weight=2`, so it gets twice the share. The `max_fails` and
+`fail_timeout` settings are a basic passive health check: after three failed
+attempts, Nginx stops sending that server traffic for 30 seconds.
+
+## Health checks
+
+Managed load balancers do this actively: every few seconds they request an
+endpoint like `/health` on each server. Enough consecutive failures takes the
+server out of rotation, and enough successes brings it back.
+
+In a Next.js app, the endpoint can be as small as this:
+
+```ts
+// app/api/health/route.ts
+export function GET() {
+  return Response.json({ status: "ok" });
+}
+```
+
+Keep it shallow. It's tempting to make the health check verify the database,
+the cache, and every third-party API, so that anything being down marks the
+server unhealthy. The problem is that when the database has a brief hiccup,
+every server fails its check at the same moment, the load balancer pulls the
+whole fleet, and a partial problem becomes a total outage. A health check should
+answer "can this process serve requests?" and let the app deal with degraded
+dependencies on its own.
+
+Deploys need one more setting: connection draining. When a server is taken out
+of rotation, in-flight requests should be allowed to finish first. AWS calls it
+the deregistration delay. Without it, every deploy drops a few requests.
+
+## The stateful-server trap
+
+The moment you have two servers, anything a server keeps in its own memory or on
+its own disk becomes a bug. A login session stored in memory means the next
+request lands on the other server and the user is logged out. A file uploaded
+to local disk returns a 404 when the request goes elsewhere.
+
+There are two ways out:
+
+- **Sticky sessions.** The load balancer pins a client to one server, usually
+  with a cookie. It works immediately, but load gets uneven, and when that
+  server dies or is replaced, its sessions go with it.
+- **Stateless servers.** Sessions live in Redis or the database (or in a signed
+  token), and uploaded files live in object storage like S3. It takes more work
+  up front, but it's what lets you add and remove servers freely, which was the
+  whole point.
+
+Prefer the second, and treat sticky sessions as a stopgap.
+
+## The gotchas behind most 502s
+
+Most "the load balancer is broken" incidents are one of these.
+
+**Keep-alive mismatch.** Load balancers reuse connections to your servers. If
+your server closes an idle connection sooner than the load balancer expects, the
+load balancer will occasionally send a request down a connection that was just
+closed, and you get a sporadic 502 with nothing in your application logs.
+Node's default keep-alive timeout is 5 seconds, while an ALB's idle timeout is
+60. The fix is to make the server's timeout longer than the load balancer's:
+
+```ts
+const server = app.listen(3000);
+
+server.keepAliveTimeout = 65_000; // longer than the ALB's 60s idle timeout
+server.headersTimeout = 66_000; // must be greater than keepAliveTimeout
+```
+
+**502 vs 504.** They point in different directions:
+
+- **502 Bad Gateway** means the load balancer reached a server but got a broken
+  or empty response: a closed connection, or a crash mid-request. Look at
+  connection handling and process crashes.
+- **504 Gateway Timeout** means the server didn't answer in time. Look at slow
+  endpoints, and at whether the load balancer's timeout is lower than your
+  slowest legitimate request.
+
+**The wrong client IP.** Behind a load balancer, every request appears to come
+from the load balancer's own address. The real client address is in the
+`X-Forwarded-For` header. Rate limiting, geo lookups, and audit logs all quietly
+use the wrong IP until you read it, and you should only trust that header when
+it was set by your own load balancer, since clients can send one themselves.
+
+**The load balancer itself.** Managed load balancers like an ALB already run
+across multiple availability zones. If you run your own Nginx, you've just
+created a single point of failure, so you need a second instance with failover,
+or you're better off using the managed one.
+
+## A short checklist
+
+- Layer 7 for HTTP apps, Layer 4 for everything else.
+- Start with round robin, and switch to least connections when request
+  durations vary.
+- Keep the health endpoint shallow, and turn on connection draining for deploys.
+- Make servers stateless: sessions in Redis, files in S3.
+- Set the backend's keep-alive timeout above the load balancer's idle timeout.
+- Read the client IP from `X-Forwarded-For`, and only when your own load
+  balancer set it.
+
+None of this is exotic, but each item is the kind of thing people usually learn
+by hitting it in production. It's cheaper to learn it on paper first.
