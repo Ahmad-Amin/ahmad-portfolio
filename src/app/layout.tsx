@@ -59,7 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className="motion-safe:scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-dvh flex-col antialiased`}
         suppressHydrationWarning
       >
         <a
@@ -76,7 +76,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           <MotionConfig reducedMotion="user">
             <Nav />
-            <main id="main-content">{children}</main>
+            <main id="main-content" className="flex-1">
+              {children}
+            </main>
             <Footer />
             <ChatWidget />
           </MotionConfig>

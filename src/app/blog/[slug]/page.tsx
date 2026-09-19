@@ -9,6 +9,7 @@ import { TableOfContents } from "@/components/blog/table-of-contents";
 import { MobileTableOfContents } from "@/components/blog/mobile-table-of-contents";
 import { ShareButtons } from "@/components/blog/share-buttons";
 import { PostNav } from "@/components/blog/post-nav";
+import { SubscribeForm } from "@/components/subscribe-form";
 import { extractHeadings } from "@/lib/toc";
 import { feedPath, siteUrl } from "@/lib/site";
 
@@ -84,6 +85,9 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           <MDXRemote source={post.content} components={mdxComponents} />
 
           <div className="mt-16 border-t border-border pt-8">
+            <div className="mb-10">
+              <SubscribeForm />
+            </div>
             <ShareButtons title={post.title} url={`${siteUrl}/blog/${post.slug}`} />
             <PostNav newer={newer} older={older} />
           </div>

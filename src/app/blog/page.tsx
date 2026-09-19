@@ -5,6 +5,7 @@ import { getAllPosts, formatPostDate } from "@/lib/blog";
 import { feedPath } from "@/lib/site";
 import { Section } from "@/components/section";
 import { Panel } from "@/components/panel";
+import { SubscribeForm } from "@/components/subscribe-form";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -74,6 +75,10 @@ export default function BlogPage() {
             ))}
           </ul>
         )}
+
+        <div className="mt-12">
+          <SubscribeForm />
+        </div>
       </div>
     </Section>
   );
