@@ -5,9 +5,16 @@ import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
 import { mdxComponents } from "@/components/mdx-components";
 import { Section } from "@/components/section";
 import { RecentPosts } from "@/components/blog/recent-posts";
-import { siteUrl } from "@/lib/site";
+import { TableOfContents } from "@/components/blog/table-of-contents";
+import { MobileTableOfContents } from "@/components/blog/mobile-table-of-contents";
+import { ShareButtons } from "@/components/blog/share-buttons";
+import { PostNav } from "@/components/blog/post-nav";
+import { extractHeadings } from "@/lib/toc";
+import { feedPath, siteUrl } from "@/lib/site";
 
 const RECENT_POSTS_COUNT = 5;
+// Short posts don't need a table of contents.
+const MIN_TOC_HEADINGS = 3;
 
 export const dynamicParams = false;
 
@@ -27,7 +34,7 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.excerpt,
-    alternates: { canonical: url },
+    alternates: { canonical: url, types: { "application/rss+xml": feedPath } },
     openGraph: {
       title: post.title,
       description: post.excerpt,
@@ -49,9 +56,14 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   const post = getPostBySlug(slug);
   if (!post) notFound();
 
-  const recentPosts = getAllPosts()
-    .filter((p) => p.slug !== post.slug)
-    .slice(0, RECENT_POSTS_COUNT);
+  const allPosts = getAllPosts();
+  const index = allPosts.findIndex((p) => p.slug === post.slug);
+  const newer = index > 0 ? allPosts[index - 1] : null;
+  const older = index < allPosts.length - 1 ? allPosts[index + 1] : null;
+  const recentPosts = allPosts.filter((p) => p.slug !== post.slug).slice(0, RECENT_POSTS_COUNT);
+
+  const headings = extractHeadings(post.content);
+  const showToc = headings.length >= MIN_TOC_HEADINGS;
 
   return (
     <Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
@@ -67,12 +79,28 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             <time dateTime={post.date}>{formatPostDate(post.date)}</time> · {post.readingTime}
           </p>
 
+          {showToc && <MobileTableOfContents headings={headings} />}
+
           <MDXRemote source={post.content} components={mdxComponents} />
+
+          <div className="mt-16 border-t border-border pt-8">
+            <ShareButtons title={post.title} />
+            <PostNav newer={newer} older={older} />
+          </div>
         </article>
 
-        {recentPosts.length > 0 && (
-          <aside className="lg:sticky lg:top-32">
-            <RecentPosts posts={recentPosts} />
+        {(showToc || recentPosts.length > 0) && (
+          <aside className="lg:sticky lg:top-32 lg:-mx-1 lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1">
+            {showToc && (
+              <div className="hidden lg:block">
+                <TableOfContents headings={headings} />
+              </div>
+            )}
+            {recentPosts.length > 0 && (
+              <div className={showToc ? "lg:mt-8" : undefined}>
+                <RecentPosts posts={recentPosts} />
+              </div>
+            )}
           </aside>
         )}
       </div>

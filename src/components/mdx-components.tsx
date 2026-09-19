@@ -1,8 +1,17 @@
 import type { MDXComponents } from 'mdx/types';
 import { Panel } from '@/components/panel';
+import { nodeText, slugifyHeading } from '@/lib/toc';
 
 export const mdxComponents: MDXComponents = {
-  h2: (props) => <h2 className="mt-12 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl" {...props} />,
+  h2: ({ children, ...props }) => (
+    <h2
+      id={slugifyHeading(nodeText(children))}
+      className="mt-12 scroll-mt-28 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+      {...props}
+    >
+      {children}
+    </h2>
+  ),
   h3: (props) => <h3 className="mt-8 text-xl font-semibold tracking-tight text-foreground" {...props} />,
   p: (props) => <p className="mt-6 text-lg leading-relaxed text-muted" {...props} />,
   a: (props) => <a className="text-accent underline underline-offset-4 hover:opacity-80" {...props} />,

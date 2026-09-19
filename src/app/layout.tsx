@@ -8,7 +8,7 @@ import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { ChatWidget } from "@/components/chat-widget";
 import { profile } from "@/data/profile";
-import { siteUrl } from "@/lib/site";
+import { feedPath, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +30,7 @@ export const metadata: Metadata = {
     template: `%s — ${profile.brand}`,
   },
   description: profile.tagline,
+  alternates: { types: { "application/rss+xml": feedPath } },
   openGraph: {
     title,
     description: profile.tagline,

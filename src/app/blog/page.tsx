@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Rss } from "lucide-react";
 import { getAllPosts, formatPostDate } from "@/lib/blog";
+import { feedPath } from "@/lib/site";
 import { Section } from "@/components/section";
 import { Panel } from "@/components/panel";
 
@@ -16,12 +17,21 @@ export default function BlogPage() {
   return (
     <Section id="blog" labelledBy="blog-heading" className="pt-32 sm:pt-40">
       <div className="mx-auto max-w-2xl">
-        <h1
-          id="blog-heading"
-          className="text-display-sm font-semibold tracking-tight text-foreground"
-        >
-          Blog
-        </h1>
+        <div className="flex items-baseline justify-between gap-4">
+          <h1
+            id="blog-heading"
+            className="text-display-sm font-semibold tracking-tight text-foreground"
+          >
+            Blog
+          </h1>
+          <a
+            href={feedPath}
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent"
+          >
+            <Rss className="size-4" />
+            RSS
+          </a>
+        </div>
         <p className="mt-4 text-lg leading-relaxed text-muted">
           Full-stack development and DevOps notes, written up from what I build and ship.
         </p>
