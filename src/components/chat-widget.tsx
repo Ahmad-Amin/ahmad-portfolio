@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import clsx from "clsx";
 import { profile } from "@/data/profile";
+import { trackEvent } from "@/lib/analytics";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const firstName = profile.name.split(" ")[0];
@@ -218,12 +219,13 @@ export function ChatWidget() {
     return () => clearTimeout(timer);
   }, [teaser]);
 
-  function toggleOpen() {
+  function toggleOpen(source: "launcher" | "teaser") {
     interactedRef.current = true;
     setPulse(false);
     setTeaser(false);
     markTeaserSeen();
-    setOpen((prev) => !prev);
+    if (!open) trackEvent("chat_open", { source });
+    setOpen(!open);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -330,7 +332,7 @@ export function ChatWidget() {
             >
               <button
                 type="button"
-                onClick={toggleOpen}
+                onClick={() => toggleOpen("teaser")}
                 className="flex w-full items-center gap-3 rounded-3xl border border-border bg-surface py-3 pr-10 pl-3 text-left shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-colors hover:border-accent/40"
               >
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
@@ -363,7 +365,7 @@ export function ChatWidget() {
           )}
           <button
             type="button"
-            onClick={toggleOpen}
+            onClick={() => toggleOpen("launcher")}
             aria-expanded={open}
             aria-label={open ? "Close chat" : `Chat with ${firstName}'s AI assistant`}
             className="relative flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_8px_30px_rgb(0,0,0,0.16)] transition-transform hover:scale-105"

@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { profile } from "@/data/profile";
 import { Section } from "@/components/section";
+import { TrackedLink } from "@/components/tracked-link";
 
 export function Hero() {
   return (
@@ -24,19 +25,23 @@ export function Hero() {
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <a
+          <TrackedLink
             href="#footprint"
+            event="hero_cta_click"
+            params={{ cta: "view_footprint" }}
             className="inline-flex items-center gap-1.5 rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
           >
             View Footprint
-          </a>
-          <a
+          </TrackedLink>
+          <TrackedLink
             href="#contact"
+            event="hero_cta_click"
+            params={{ cta: "get_in_touch" }}
             className="group inline-flex items-center gap-1 px-2 py-3 text-sm font-medium text-foreground transition-colors hover:text-accent"
           >
             Get in Touch
             <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </a>
+          </TrackedLink>
         </div>
       </div>
     </Section>

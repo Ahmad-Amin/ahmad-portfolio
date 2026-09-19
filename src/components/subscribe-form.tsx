@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { MailCheck } from "lucide-react";
 import { Panel } from "@/components/panel";
+import { trackEvent } from "@/lib/analytics";
 
 type Status = "idle" | "submitting" | "sent" | "error";
 
@@ -30,6 +31,7 @@ export function SubscribeForm() {
       });
 
       if (res.ok) {
+        trackEvent("newsletter_signup");
         setSentTo(email);
         setStatus("sent");
         return;

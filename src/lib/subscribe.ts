@@ -6,6 +6,12 @@ export const CONFIRM_TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
 // Must be an address on a domain verified in Resend.
 export const NEWSLETTER_FROM = "TechWithSwag <newsletter@techwithswag.com>";
 
+// The Resend topic subscribers opt in to. Topics are what keep this site's
+// unsubscribes separate from other sites sharing the same Resend account.
+export function getNewsletterTopicId(): string | null {
+  return process.env.RESEND_TOPIC_ID || null;
+}
+
 export function getResend(): Resend | null {
   return process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 }

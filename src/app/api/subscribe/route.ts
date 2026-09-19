@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { profile } from "@/data/profile";
 import { siteUrl } from "@/lib/site";
-import { NEWSLETTER_FROM, createConfirmToken, getResend } from "@/lib/subscribe";
+import {
+  NEWSLETTER_FROM,
+  createConfirmToken,
+  getNewsletterTopicId,
+  getResend,
+} from "@/lib/subscribe";
 
 const emailSchema = z.email().max(254);
 
@@ -61,6 +66,13 @@ function confirmationEmail(link: string) {
 export async function POST(req: Request) {
   const resend = getResend();
   if (!resend) {
+    return Response.json({ error: "Signup isn't available right now." }, { status: 503 });
+  }
+
+  // Without a topic, confirmed subscribers wouldn't be opted in to anything, so
+  // refuse now rather than send confirmation emails that lead nowhere.
+  if (!getNewsletterTopicId()) {
+    console.error("[subscribe] RESEND_TOPIC_ID is not set; signup is disabled.");
     return Response.json({ error: "Signup isn't available right now." }, { status: 503 });
   }
 
