@@ -84,7 +84,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           <MDXRemote source={post.content} components={mdxComponents} />
 
           <div className="mt-16 border-t border-border pt-8">
-            <ShareButtons title={post.title} />
+            <ShareButtons title={post.title} url={`${siteUrl}/blog/${post.slug}`} />
             <PostNav newer={newer} older={older} />
           </div>
         </article>

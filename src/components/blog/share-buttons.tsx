@@ -9,7 +9,8 @@ const COPIED_RESET_MS = 2000;
 const iconButtonClass =
   "inline-flex size-9 items-center justify-center rounded-full bg-surface text-muted transition-colors hover:bg-accent/10 hover:text-accent";
 
-export function ShareButtons({ title }: { title: string }) {
+// `url` is the post's canonical URL, so shares never carry localhost or a preview-deployment address.
+export function ShareButtons({ title, url }: { title: string; url: string }) {
   const [copied, setCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -19,14 +20,9 @@ export function ShareButtons({ title }: { title: string }) {
     };
   }, []);
 
-  // Read at click time so the link always matches the domain being viewed.
-  function pageUrl() {
-    return `${window.location.origin}${window.location.pathname}`;
-  }
-
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(pageUrl());
+      await navigator.clipboard.writeText(url);
     } catch {
       return;
     }
@@ -60,7 +56,7 @@ export function ShareButtons({ title }: { title: string }) {
         aria-label="Share on LinkedIn"
         onClick={() =>
           openShare(
-            `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl())}`,
+            `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
           )
         }
         className={iconButtonClass}
@@ -72,7 +68,7 @@ export function ShareButtons({ title }: { title: string }) {
         aria-label="Share on X"
         onClick={() =>
           openShare(
-            `https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(pageUrl())}`,
+            `https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
           )
         }
         className={iconButtonClass}
