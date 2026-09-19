@@ -11,6 +11,8 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 const EASE = [0.16, 1, 0.3, 1] as const;
+// Fades use a gentle in/out curve; EASE is too front-loaded for opacity and reads as a pop.
+const EASE_SOFT = [0.25, 0.1, 0.25, 1] as const;
 // Slightly over-damped: it settles quickly without overshooting.
 const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.7 } as const;
 const GAP = 3;
@@ -22,8 +24,8 @@ const TOOLTIP_OFFSET = 10;
 const TOOLTIP_FLIP_THRESHOLD = 64;
 // A quick pass across the grid shouldn't flash the tooltip, and leaving gets a
 // short grace period so crossing a gap or briefly slipping out doesn't blink it.
-const SHOW_DELAY_MS = 60;
-const HIDE_DELAY_MS = 120;
+const SHOW_DELAY_MS = 50;
+const HIDE_DELAY_MS = 100;
 const LEVEL_COLORS = [
   "var(--border)",
   "color-mix(in oklch, var(--accent) 25%, var(--surface))",
@@ -69,7 +71,8 @@ function HeatmapTooltip({ hover }: { hover: HoveredDay }) {
   const y = below
     ? hover.top + hover.size + TOOLTIP_OFFSET
     : hover.top - TOOLTIP_OFFSET - TOOLTIP_HEIGHT;
-  const fade = { duration: 0.18, ease: EASE };
+  const fadeIn = { duration: 0.26, ease: EASE_SOFT };
+  const fadeOut = { duration: 0.3, ease: EASE_SOFT };
 
   return (
     <>
@@ -77,8 +80,8 @@ function HeatmapTooltip({ hover }: { hover: HoveredDay }) {
         aria-hidden="true"
         initial={{ opacity: 0, x: hover.left, y: hover.top }}
         animate={{ opacity: 1, x: hover.left, y: hover.top }}
-        exit={{ opacity: 0, transition: fade }}
-        transition={{ x: GLIDE, y: GLIDE, opacity: fade }}
+        exit={{ opacity: 0, transition: fadeOut }}
+        transition={{ x: GLIDE, y: GLIDE, opacity: fadeIn }}
         className="pointer-events-none absolute top-0 left-0 z-10 outline-2 outline-foreground"
         style={{ width: hover.size, height: hover.size }}
       />
@@ -86,8 +89,8 @@ function HeatmapTooltip({ hover }: { hover: HoveredDay }) {
         aria-hidden="true"
         initial={{ opacity: 0, scale: 0.96, x, y: y + (below ? -4 : 4) }}
         animate={{ opacity: 1, scale: 1, x, y }}
-        exit={{ opacity: 0, scale: 0.98, transition: fade }}
-        transition={{ x: GLIDE, y: GLIDE, opacity: fade, scale: { duration: 0.22, ease: EASE } }}
+        exit={{ opacity: 0, scale: 0.98, transition: fadeOut }}
+        transition={{ x: GLIDE, y: GLIDE, opacity: fadeIn, scale: { duration: 0.32, ease: EASE } }}
         className="pointer-events-none absolute top-0 left-0 z-20 flex flex-col justify-center rounded-xl bg-foreground px-3 text-center shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
         style={{ width: TOOLTIP_WIDTH, height: TOOLTIP_HEIGHT, transformOrigin: "50% 100%" }}
       >
