@@ -14,7 +14,7 @@ export interface LiveProject {
   // Thumbnail shown on the card and as the carousel's fallback — independent
   // of `images` so it doesn't have to be whichever one happens to be first.
   cover: string;
-  // Paths under /public, e.g. "/projects/reactform/1.png". Empty is fine —
+  // Paths under /public, e.g. "/projects/reactform/1.webp". Empty is fine —
   // the UI falls back to a platform icon when there's nothing to show.
   images: string[];
 }
@@ -29,8 +29,8 @@ export const liveProjects: LiveProject[] = [
     url: 'https://reactform.co/',
     platform: 'web',
     technologies: ['Next.js', 'React', 'Firebase', 'Tailwind CSS', 'Chakra UI', 'Ant Design', 'Lemon Squeezy', 'Resend'],
-    cover: '/react-form/image1.png',
-    images: ['/react-form/image1.png', '/react-form/image2.png', '/react-form/image3.png', '/react-form/image4.png', '/react-form/image5.png'],
+    cover: '/react-form/image1.webp',
+    images: ['/react-form/image1.webp', '/react-form/image2.webp', '/react-form/image3.webp', '/react-form/image4.webp', '/react-form/image5.webp'],
   },
   {
     slug: 'shadowguard',
@@ -41,8 +41,8 @@ export const liveProjects: LiveProject[] = [
     url: 'https://chromewebstore.google.com/detail/shadowguard-%E2%80%94-ai-data-pro/bbidfhhclnjijjediipaphngkkecmpab',
     platform: 'extension',
     technologies: ['TypeScript', 'Chrome Extension (Manifest V3)', 'Vite', 'Lemon Squeezy'],
-    cover: '/shadow-guard/image1.png',
-    images: ['/shadow-guard/image1.png', '/shadow-guard/image2.png', '/shadow-guard/image3.png'],
+    cover: '/shadow-guard/image1.webp',
+    images: ['/shadow-guard/image1.webp', '/shadow-guard/image2.webp', '/shadow-guard/image3.webp'],
   },
   {
     slug: 'ai-expense-tracker',
@@ -53,16 +53,16 @@ export const liveProjects: LiveProject[] = [
     url: 'https://play.google.com/store/apps/details?id=com.anonymous.aiexpensetracker',
     platform: 'app',
     technologies: ['React Native', 'Expo', 'Expo Router', 'TypeScript', 'SQLite', 'Kotlin', 'OpenAI API', 'RevenueCat', 'Vercel'],
-    cover: '/ai-expense-tracker/image0.png',
+    cover: '/ai-expense-tracker/image0.webp',
     images: [
-      '/ai-expense-tracker/image1.png',
-      '/ai-expense-tracker/image2.png',
-      '/ai-expense-tracker/image3.png',
-      '/ai-expense-tracker/image4.png',
-      '/ai-expense-tracker/image5.png',
-      '/ai-expense-tracker/image6.png',
-      '/ai-expense-tracker/image7.png',
-      '/ai-expense-tracker/image8.png',
+      '/ai-expense-tracker/image1.webp',
+      '/ai-expense-tracker/image2.webp',
+      '/ai-expense-tracker/image3.webp',
+      '/ai-expense-tracker/image4.webp',
+      '/ai-expense-tracker/image5.webp',
+      '/ai-expense-tracker/image6.webp',
+      '/ai-expense-tracker/image7.webp',
+      '/ai-expense-tracker/image8.webp',
     ],
   },
 ];

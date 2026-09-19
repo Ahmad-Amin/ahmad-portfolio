@@ -14,7 +14,7 @@ That's the problem [ShadowGuard](https://chromewebstore.google.com/detail/shadow
 solves: it watches what you type into ChatGPT, Claude, and Gemini in real time,
 and catches secrets and personal data before the request goes out.
 
-![ShadowGuard redacting an email address in an AI chat input before it's sent](/shadow-guard/image1.png)
+![ShadowGuard redacting an email address in an AI chat input before it's sent](/shadow-guard/image1.webp)
 
 ## Detection has to work on things that don't announce themselves
 
@@ -40,7 +40,7 @@ Depending on how severe a match is, ShadowGuard either redacts it in place
 with a reversible, session-local placeholder — `[EMAIL_1]`, `[IBAN_1]`,
 `[BANK_ACCOUNT_1]` — or blocks the send outright and asks you to confirm.
 
-![ShadowGuard redacting a bank routing number and IBAN in a ChatGPT prompt, with a review-before-sending prompt](/shadow-guard/image2.png)
+![ShadowGuard redacting a bank routing number and IBAN in a ChatGPT prompt, with a review-before-sending prompt](/shadow-guard/image2.webp)
 
 ## Does the model actually never see the real value?
 
@@ -49,7 +49,7 @@ checking. So after sending a message with a routing number and IBAN
 redacted, I asked ChatGPT to read back — character by character — exactly
 what it had received:
 
-![ChatGPT confirming it only ever received the placeholder tokens BANK_ACCOUNT_1 and IBAN_1, never the real routing number or IBAN](/shadow-guard/image3.png)
+![ChatGPT confirming it only ever received the placeholder tokens BANK_ACCOUNT_1 and IBAN_1, never the real routing number or IBAN](/shadow-guard/image3.webp)
 
 It could only echo back `[BANK_ACCOUNT_1]` and `[IBAN_1]`. The real numbers
 never left the browser — which is the whole point. ShadowGuard doesn't proxy
