@@ -9,6 +9,7 @@ import { navLinks, type NavLink } from "@/data/nav-links";
 import { profile } from "@/data/profile";
 import { useActiveSection } from "@/hooks/use-active-section";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandWordmark } from "@/components/brand-wordmark";
 
 const SCROLL_THRESHOLD = 24;
 
@@ -69,14 +70,15 @@ export function Nav() {
       <div
         className={clsx(
           "flex w-full items-center justify-between gap-2 rounded-full border border-border/60 bg-surface/80 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-md transition-[max-width] duration-300 ease-out",
-          scrolled ? "max-w-xl" : "max-w-2xl",
+          scrolled ? "max-w-2xl" : "max-w-3xl",
         )}
       >
         <BrandTag
           href={brandHref}
-          className="px-3 py-1.5 text-sm font-semibold tracking-tight text-foreground"
+          aria-label={profile.brand}
+          className="group/brand inline-flex items-center px-3 py-1.5"
         >
-          {profile.brand}
+          <BrandWordmark />
         </BrandTag>
 
         <div className="flex items-center gap-1">
