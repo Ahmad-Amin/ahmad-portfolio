@@ -14,14 +14,6 @@ export interface Testimonial {
 // one to show up on the site.
 export const testimonials: Testimonial[] = [
   {
-    name: 'Abdullah Shahid',
-    role: 'Lead Full Stack Developer',
-    company: 'Upwork',
-    linkedinUrl: 'https://www.linkedin.com/in/abdullahdevelops/',
-    message:
-      'Ahmad is a clear shooter and a great asset to any team. He owns the features and goes up & beyond to deliver high quality work every time, communicates clearly and has what it takes to solve complex problems. His technical skills and professionalism make working with him a smooth experience. Highly recommended!',
-  },
-  {
     name: 'Andrea Lala',
     role: 'IT Services Director/ITIL,SLA Management & Cross Functional leadership',
     company: 'Bitrock',
@@ -36,5 +28,13 @@ export const testimonials: Testimonial[] = [
     linkedinUrl: 'https://www.linkedin.com/in/cecilia-aco/',
     message:
       'I’ve had the pleasure of working with Ahmad on several projects, and I can confidently say he is an exceptional Senior Software Engineer. Ahmad is focused, driven, and consistently delivers high-quality work on time. What truly sets him apart is his dedication to going above and beyond expectations—he doesn’t just complete tasks, he looks for ways to add value. Beyond his technical expertise, Ahmad is a true team player. He brings a positive attitude to every interaction, making collaboration both productive and enjoyable. His professionalism, problem-solving skills, and commitment to excellence make him a great asset to any team.',
+  },
+  {
+    name: 'Abdullah Shahid',
+    role: 'Lead Full Stack Developer',
+    company: 'Upwork',
+    linkedinUrl: 'https://www.linkedin.com/in/abdullahdevelops/',
+    message:
+      'Ahmad is a clear shooter and a great asset to any team. He owns the features and goes up & beyond to deliver high quality work every time, communicates clearly and has what it takes to solve complex problems. His technical skills and professionalism make working with him a smooth experience. Highly recommended!',
   },
 ];
