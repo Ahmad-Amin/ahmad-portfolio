@@ -70,7 +70,7 @@ export function Nav() {
       <div
         className={clsx(
           "flex w-full items-center justify-between gap-2 rounded-full border border-border/60 bg-surface/80 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-md transition-[max-width] duration-300 ease-out",
-          scrolled ? "max-w-2xl" : "max-w-3xl",
+          scrolled ? "max-w-3xl" : "max-w-4xl",
         )}
       >
         <BrandTag

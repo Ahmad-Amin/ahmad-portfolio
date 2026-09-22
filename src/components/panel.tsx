@@ -6,6 +6,7 @@ interface PanelProps {
   className?: string;
   children: ReactNode;
   shadow?: "default" | "subtle" | "none";
+  [key: string]: unknown;
 }
 
 const shadowClasses = {
@@ -14,7 +15,13 @@ const shadowClasses = {
   none: "shadow-none",
 };
 
-export function Panel({ as: Tag = "div", className, children, shadow = "default" }: PanelProps) {
+export function Panel({
+  as: Tag = "div",
+  className,
+  children,
+  shadow = "default",
+  ...rest
+}: PanelProps) {
   return (
     <Tag
       className={clsx(
@@ -22,6 +29,7 @@ export function Panel({ as: Tag = "div", className, children, shadow = "default"
         shadowClasses[shadow],
         className,
       )}
+      {...rest}
     >
       {children}
     </Tag>
