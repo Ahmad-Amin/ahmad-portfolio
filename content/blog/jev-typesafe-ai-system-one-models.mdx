@@ -1,0 +1,116 @@
+---
+title: "Jev, and the case for a decision layer underneath your LLM"
+date: "2026-09-22"
+excerpt: "TypeSafe AI's new 'System 1' model skips text generation entirely and returns bounded, typed decisions instead — what that actually buys you, and what it doesn't fix."
+tags: ["ai", "llm", "ai-agents"]
+---
+
+Most agent loops I build lately have the same shape, no matter what the agent
+is actually for: call an LLM, get back something that's supposed to be JSON,
+validate it, sometimes retry because the model wrapped it in a sentence or
+picked a field name that wasn't in the schema. That's true even for genuinely
+small decisions — the `saveLead` tool in this site's own chat widget only
+fires once the model has decided the visitor has actually shared a name,
+email, and project. That decision is a single bit. It still costs a full
+generative call to get there.
+
+[TypeSafe AI](https://typesafe.ai/blog/introducing-system-one-models-and-jev),
+a research lab started by former OpenAI researcher Diogo Almeida, just came
+out of stealth with a model called **Jev** that's built specifically to
+replace that kind of call — not with a smaller LLM, but with a different
+category of model entirely.
+
+## The pitch: stop generating text for decisions
+
+A regular LLM call looks like this no matter how small the question is:
+
+```
+context ──▶ generate tokens ──▶ generate more tokens ──▶ parse the result
+```
+
+Jev, which TypeSafe calls a "System 1 model," instead takes context and
+returns a bounded, typed value directly:
+
+```
+context ──▶ Jev ──▶ true / false, or A / B / C, or a 0–10 score, or 0.87
+```
+
+The name is a deliberate reference to Kahneman's System 1 / System 2
+distinction — System 1 being the fast, intuitive judgment your brain makes
+without deliberate reasoning, System 2 being the slower, effortful kind. The
+implied division of labor is that an LLM stays the System 2 layer — planning,
+writing, explaining — while a System 1 model handles the high-volume,
+low-stakes calls happening constantly around it: route this ticket, retry
+this request, score this response, flag this transaction.
+
+## How it's actually different
+
+According to TypeSafe's announcement, the mechanical difference is real, not
+just a prompting trick. LLMs sample tokens one at a time, so latency scales
+with output length. Jev is trained (via what they call reinforcement learning
+for calibrated decisions) to compute probabilities over a fixed, pre-defined
+output space in parallel, in a single pass. The numbers they publish:
+
+- **70–500ms** end to end, versus 3–329 seconds for comparable LLM calls on
+  the same class of task.
+- **Calibrated probabilities** as the actual output — not a token that looks
+  like a probability, but a number where, in their framing, higher confidence
+  really does track higher accuracy.
+- **$0.042 per million input tokens**, with output currently free — their
+  words are "too cheap to meter."
+
+Those are the vendor's own benchmarks from a company that's still in early
+access, not something independently verified, so I'd treat the specific
+multiples with the usual skepticism you'd give any launch post. But the
+underlying idea doesn't depend on the exact numbers holding up: constraining
+the output space to a fixed set of typed values removes an entire category of
+failure — the model can't hallucinate a fifth option when only four exist,
+and there's nothing left to parse or retry on malformed JSON.
+
+## What it doesn't fix
+
+This is the part worth sitting with, because it's easy to round "can't
+produce an invalid shape" up to "can't be wrong." Those are different claims.
+A bounded model can still confidently return `false` when the right answer
+was `true`, or pick option B with high stated confidence when C was correct.
+Type-safety constrains the *shape* of the mistake, not whether one happens.
+For anything with real consequences — approving a transaction, deciding an
+agent's next action — you still need the same judgment calls about acceptable
+error rates and where a human needs to be in the loop that you'd apply to any
+classifier.
+
+## Where this fits into agent loops
+
+The interesting target for this isn't chat, it's the control flow *around*
+agents — the part that's currently built out of a lot of small, repeated LLM
+calls:
+
+```
+LLM ─▶ use a tool
+LLM ─▶ inspect the result
+LLM ─▶ retry?
+LLM ─▶ pick the next tool
+LLM ─▶ done?
+```
+
+Swap the middle three for a fast typed model and the shape becomes closer to
+`LLM: plan and act` with `Jev: retry — 0.91` running underneath it for the
+routing questions. TypeSafe demoed this with a Doom-playing bot making about
+10 decisions a second and a Wikipedia-navigating agent choosing between dozens
+of outbound links per page — both cases where an LLM call per decision would
+be too slow or too expensive to run in real time, and where the honest answer
+doesn't need a paragraph, just a choice.
+
+## The bigger claim
+
+TypeSafe's actual thesis is broader than one model: that "AI" doesn't have to
+mean one generative model doing every kind of intelligence — that generation,
+reasoning, and fast bounded decisions might end up being three different
+jobs, done by three different kinds of models, the way a backend doesn't run
+everything through one general-purpose service. Jev is early — waitlisted,
+unproven outside their own benchmarks, and it's one company's bet on that
+split. But the split itself matches something I keep running into building
+agent-shaped tools: most of the calls in a loop like the one above aren't
+asking the model to think. They're asking it to decide. Those don't feel like
+the same problem, and it's a little surprising it's taken this long for
+someone to stop treating them as one.
