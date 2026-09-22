@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import clsx from "clsx";
 import { profile } from "@/data/profile";
 import { trackEvent } from "@/lib/analytics";
+import { MAX_USER_MESSAGE_CHARS } from "@/lib/chat-limits";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const firstName = profile.name.split(" ")[0];
@@ -305,6 +306,7 @@ export function ChatWidget() {
                   onChange={(event) => setInput(event.target.value)}
                   placeholder="Type a message…"
                   aria-label="Message"
+                  maxLength={MAX_USER_MESSAGE_CHARS}
                   className="min-w-0 flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
                 />
                 <button

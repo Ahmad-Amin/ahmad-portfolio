@@ -20,7 +20,7 @@ const PLATFORM_LABEL: Record<ProjectPlatform, string> = {
 
 const PLATFORM_CTA: Record<ProjectPlatform, string> = {
   web: 'Visit site',
-  extension: 'View on Chrome Web Store',
+  extension: 'View site',
   app: 'View on Google Play',
 };
 

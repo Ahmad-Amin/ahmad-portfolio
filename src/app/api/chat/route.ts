@@ -5,11 +5,11 @@ import {
   streamText,
   tool,
   type ModelMessage,
-  type UIMessage,
 } from "ai";
 import { Resend } from "resend";
-import { z } from "zod";
 import { buildSystemPrompt } from "@/lib/bot-context";
+import { parseChatRequest } from "@/lib/chat-input";
+import { leadInputSchema, leadSubject } from "@/lib/chat-lead";
 import { profile } from "@/data/profile";
 
 function messageContentText(content: ModelMessage["content"]): string {
@@ -57,14 +57,7 @@ function isRateLimited(ip: string): boolean {
 const saveLead = tool({
   description:
     "Save a visitor's contact info and what they want to build so Ahmad can follow up by email. Only call this once the visitor has clearly shared their name, email, and what they're interested in.",
-  inputSchema: z.object({
-    name: z.string().describe("The visitor's name"),
-    email: z.string().describe("The visitor's email address"),
-    whatTheyWantToBuild: z
-      .string()
-      .describe("A short summary of what the visitor wants to build or discuss"),
-    notes: z.string().optional().describe("Any other relevant context from the conversation"),
-  }),
+  inputSchema: leadInputSchema,
   execute: async ({ name, email, whatTheyWantToBuild, notes }, { messages }) => {
     const transcript = formatTranscript(messages) || "(no messages captured)";
 
@@ -84,7 +77,7 @@ const saveLead = tool({
         from: "TechWithSwag Bot <bot@techwithswag.com>",
         to: profile.email,
         replyTo: email,
-        subject: `New lead from the site bot: ${name}`,
+        subject: leadSubject(name),
         text: `Name: ${name}\nEmail: ${email}\n\nWhat they want to build:\n${whatTheyWantToBuild}\n\nNotes:\n${notes ?? "—"}\n\n---\n\nFull conversation:\n\n${transcript}`,
       });
       return { success: true };
@@ -105,10 +98,14 @@ export async function POST(req: Request) {
     return new Response("Too many messages — try again in a bit.", { status: 429 });
   }
 
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const input = parseChatRequest(await req.text());
+  if (!input.ok) {
+    return Response.json({ error: input.error }, { status: input.status });
+  }
+
   const [system, modelMessages] = await Promise.all([
     buildSystemPrompt(),
-    convertToModelMessages(messages.slice(-20)),
+    convertToModelMessages(input.messages),
   ]);
 
   const result = streamText({

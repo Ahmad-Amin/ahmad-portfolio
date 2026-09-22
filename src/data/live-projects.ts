@@ -38,7 +38,7 @@ export const liveProjects: LiveProject[] = [
     tagline: 'A local-first Chrome extension that catches secrets and personal data before they reach ChatGPT, Claude, or Gemini.',
     description:
       'ShadowGuard scans what you type into AI chat tools in real time and catches API keys, credentials, and personal data before it ever reaches the model. Detection combines regex pattern matching, checksum validation (Luhn, IBAN, ABA routing), and entropy analysis to catch both known credential formats and unlabeled random-looking secrets, while keeping false positives low. Depending on severity, matches are either auto-redacted in place with reversible, session-local placeholders or blocked outright — and everything runs entirely client-side, so prompt content is never transmitted anywhere except the AI provider itself. Published on the Chrome Web Store as a one-time-purchase extension with Lemon Squeezy-based license activation.',
-    url: 'https://chromewebstore.google.com/detail/shadowguard-%E2%80%94-ai-data-pro/bbidfhhclnjijjediipaphngkkecmpab',
+    url: 'https://ahmad-amin.github.io/shadow-guard/',
     platform: 'extension',
     technologies: ['TypeScript', 'Chrome Extension (Manifest V3)', 'Vite', 'Lemon Squeezy'],
     cover: '/shadow-guard/image1.webp',
