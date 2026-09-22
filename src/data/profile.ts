@@ -15,7 +15,7 @@ export const profile: Profile = {
   name: 'Ahmad Amin',
   role: 'Full-Stack AI Developer',
   tagline:
-    "I design and ship production systems end to end APIs, dashboards, AWS infrastructure and I'm usually still the one on call when something breaks.",
+    "I design and ship production systems end to end (APIs, dashboards, AWS infrastructure), and I'm usually still the one on call when something breaks.",
   bio: [
     '5+ years shipping with Rails, React, Next.js, and Python, including migrating a Heroku app to AWS ECS and cutting REST sprawl down to one GraphQL API. Outside the day job, I build and ship my own products solo, and write about what I learn as TechWithSwag.',
   ],
