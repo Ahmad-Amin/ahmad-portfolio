@@ -30,6 +30,14 @@ export const testimonials: Testimonial[] = [
       'I’ve had the pleasure of working with Ahmad on several projects, and I can confidently say he is an exceptional Senior Software Engineer. Ahmad is focused, driven, and consistently delivers high-quality work on time. What truly sets him apart is his dedication to going above and beyond expectations—he doesn’t just complete tasks, he looks for ways to add value. Beyond his technical expertise, Ahmad is a true team player. He brings a positive attitude to every interaction, making collaboration both productive and enjoyable. His professionalism, problem-solving skills, and commitment to excellence make him a great asset to any team.',
   },
   {
+    name: 'Roger Paucar',
+    role: 'Field Technical Engineer',
+    company: 'Bitrock',
+    linkedinUrl: 'https://www.linkedin.com/in/roger-paucar-navarro/',
+    message:
+      'I had the pleasure of working with Ahmad at Bitrock. He is a committed, reliable, and collaborative professional who was always willing to support the team and share his knowledge. I truly appreciated his professionalism and positive attitude. I would definitely recommend him and wish him continued success in his career.',
+  },
+  {
     name: 'Abdullah Shahid',
     role: 'Lead Full Stack Developer',
     company: 'Upwork',
