@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
@@ -115,6 +116,20 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             <p className="mt-4 font-mono text-sm tabular-nums text-muted">
               <time dateTime={post.date}>{formatPostDate(post.date)}</time> · {post.readingTime}
             </p>
+
+            {post.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {post.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/blog?tag=${encodeURIComponent(tag)}`}
+                    className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {showToc && <MobileTableOfContents headings={headings} />}
 
