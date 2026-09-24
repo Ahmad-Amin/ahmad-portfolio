@@ -1,5 +1,7 @@
+import { Rss } from "lucide-react";
 import { profile } from "@/data/profile";
 import { SocialLinks } from "@/components/social-links";
+import { feedPath } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -8,7 +10,16 @@ export function Footer() {
         <p className="text-sm text-muted">
           © {new Date().getFullYear()} {profile.brand}. All rights reserved.
         </p>
-        <SocialLinks />
+        <div className="flex items-center gap-3">
+          <SocialLinks />
+          <a
+            href={feedPath}
+            aria-label="RSS feed"
+            className="inline-flex size-9 items-center justify-center rounded-full bg-surface text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+          >
+            <Rss className="size-4" />
+          </a>
+        </div>
       </div>
     </footer>
   );
