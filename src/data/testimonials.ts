@@ -30,6 +30,14 @@ export const testimonials: Testimonial[] = [
       'I’ve had the pleasure of working with Ahmad on several projects, and I can confidently say he is an exceptional Senior Software Engineer. Ahmad is focused, driven, and consistently delivers high-quality work on time. What truly sets him apart is his dedication to going above and beyond expectations—he doesn’t just complete tasks, he looks for ways to add value. Beyond his technical expertise, Ahmad is a true team player. He brings a positive attitude to every interaction, making collaboration both productive and enjoyable. His professionalism, problem-solving skills, and commitment to excellence make him a great asset to any team.',
   },
   {
+    name: 'Luigi Cerrato',
+    role: 'Security Expert',
+    company: 'Bitrock',
+    linkedinUrl: 'https://www.linkedin.com/in/luigi-cerrato-a1480665/',
+    message:
+      'I had the pleasure of working with Ahmad Amin during a service contract in which I served as Service Manager and he worked as one of the technicians on our team. Throughout our collaboration, Ahmad Amin consistently proved himself to be a reliable and punctual professional. He could always be counted on to show up on time and deliver on his commitments, which made him a dependable presence on the team. Beyond his reliability, Ahmad Amin demonstrated strong technical competence in his work, handling tasks with skill and professionalism. What particularly stood out to me was his genuine eagerness to learn and grow: he consistently sought out opportunities to expand his knowledge and improve his skill set, showing a proactive attitude that benefited both himself and the team. I am confident that Ahmad Amin would be a valuable asset to any team, and I recommend him without reservation.',
+  },
+  {
     name: 'Roger Paucar',
     role: 'Field Technical Engineer',
     company: 'Bitrock',
