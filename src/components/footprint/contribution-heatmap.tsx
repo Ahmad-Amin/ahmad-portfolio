@@ -39,13 +39,15 @@ const LEVEL_COLORS = [
 interface HoveredDay {
   date: string;
   count: number;
+  future: boolean;
   left: number;
   top: number;
   size: number;
   boxWidth: number;
 }
 
-function formatCount(count: number): string {
+function formatCount(count: number, future: boolean): string {
+  if (future) return "Upcoming";
   if (count === 0) return "No contributions";
   return `${count.toLocaleString()} contribution${count === 1 ? "" : "s"}`;
 }
@@ -94,7 +96,9 @@ function HeatmapTooltip({ hover }: { hover: HoveredDay }) {
         className="pointer-events-none absolute top-0 left-0 z-20 flex flex-col justify-center rounded-xl bg-foreground px-3 text-center shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
         style={{ width: TOOLTIP_WIDTH, height: TOOLTIP_HEIGHT, transformOrigin: "50% 100%" }}
       >
-        <p className="text-xs font-semibold text-background">{formatCount(hover.count)}</p>
+        <p className="text-xs font-semibold text-background">
+          {formatCount(hover.count, hover.future)}
+        </p>
         <p className="mt-0.5 text-[11px] text-background/70">{formatDate(hover.date)}</p>
         <motion.span
           initial={false}
@@ -197,6 +201,7 @@ export function ContributionHeatmap({
     const next: HoveredDay = {
       date: cell.dataset.date ?? "",
       count: Number(cell.dataset.count),
+      future: cell.dataset.future === "true",
       left: cellRect.left - boxRect.left,
       top: cellRect.top - boxRect.top,
       size: cellRect.width,
@@ -245,6 +250,11 @@ export function ContributionHeatmap({
   }
 
   const years = Array.from({ length: initialYear - minYear + 1 }, (_, i) => initialYear - i);
+
+  // Days after today (relevant only for the current year) render as blank
+  // cells, same as the leading week-offset padding — not as "no activity"
+  // boxes, which would be indistinguishable from a real zero-contribution day.
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   let grid: React.ReactNode = null;
   if (days.length > 0) {
@@ -296,8 +306,25 @@ export function ContributionHeatmap({
             gap: `${GAP}px`,
           }}
         >
-          {padded.map((day, i) =>
-            day ? (
+          {padded.map((day, i) => {
+            if (!day) {
+              // Week-offset filler before day 1 of the year — not a real date at all.
+              return <div key={`pad-${i}`} aria-hidden="true" className="aspect-square w-full" />;
+            }
+
+            const isFuture = day.date > todayStr;
+            if (isFuture) {
+              return (
+                <div
+                  key={day.date}
+                  data-date={day.date}
+                  data-future="true"
+                  className="aspect-square w-full rounded-[1px] border border-dashed border-muted/50"
+                />
+              );
+            }
+
+            return (
               <div
                 key={day.date}
                 data-date={day.date}
@@ -305,10 +332,8 @@ export function ContributionHeatmap({
                 className="aspect-square w-full"
                 style={{ backgroundColor: LEVEL_COLORS[day.level] ?? LEVEL_COLORS[0] }}
               />
-            ) : (
-              <div key={`pad-${i}`} aria-hidden="true" className="aspect-square w-full" />
-            ),
-          )}
+            );
+          })}
         </div>
       </div>
     );
