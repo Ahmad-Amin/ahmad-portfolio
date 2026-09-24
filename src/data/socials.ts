@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { GithubIcon, LinkedinIcon, YoutubeIcon } from "@/components/icons";
+import { GithubIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/components/icons";
 
 export interface Social {
   platform: string;
@@ -20,4 +20,5 @@ export const socials: Social[] = [
     url: "https://www.youtube.com/channel/UCW5W5TuR0oIPRkW-lqEAs8g",
     icon: YoutubeIcon,
   },
+  { platform: "X", url: "https://x.com/techwithswag01", icon: XIcon },
 ];
