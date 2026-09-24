@@ -14,7 +14,18 @@ export const mdxComponents: MDXComponents = {
   ),
   h3: (props) => <h3 className="mt-8 text-xl font-semibold tracking-tight text-foreground" {...props} />,
   p: (props) => <p className="mt-6 text-lg leading-relaxed text-muted" {...props} />,
-  a: (props) => <a className="text-accent underline underline-offset-4 hover:opacity-80" {...props} />,
+  a: ({ href = "", ...props }) => {
+    const isExternal = /^https?:\/\//i.test(href);
+    return (
+      <a
+        href={href}
+        className="text-accent underline underline-offset-4 hover:opacity-80"
+        target={isExternal ? "_blank" : undefined}
+        rel={isExternal ? "noopener noreferrer" : undefined}
+        {...props}
+      />
+    );
+  },
   code: (props) => (
     <code
       className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[0.9em] text-accent in-[pre]:rounded-none in-[pre]:bg-transparent in-[pre]:px-0 in-[pre]:py-0 in-[pre]:text-foreground"
