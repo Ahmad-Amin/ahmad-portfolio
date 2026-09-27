@@ -27,8 +27,9 @@ it resolves every table and column name against the actual schema, and
 resolves data types so it knows `created_at >= '2026-09-01'` is comparing a
 timestamp to a timestamp, not a string to a string. If your query references
 a view, one more step called the *rewriter* substitutes the view's definition
-in place, so by the time planning starts, the planner never has to know a
-view was involved at all.
+in place, so by the time planning starts, the view has already been expanded
+into the underlying query and the planner is reasoning about the real tables
+directly.
 
 None of this touches a single row of data. It's pure text-to-structure work,
 and it's also where a typo'd column name actually gets caught, well before
@@ -63,8 +64,11 @@ more than one table is involved:
 
 - **Nested loop**: for each row on one side, scan the other side looking for
   a match. Cheap when one side is small.
-- **Hash join**: build a hash table from the smaller side, then scan the
-  larger side probing it. The default for joining two sizeable tables.
+- **Hash join**: build a hash table from one side, then scan the other side
+  probing it. Often the cheapest choice for an equality join between two
+  sizeable tables, but it's still a cost comparison, not a fixed rule: a
+  merge join can win when the input is already sorted, and a selective index
+  can still make a nested loop win outright.
 - **Merge join**: walk both sides in sorted order together. Wins when the
   data is already sorted (or an index provides that order for free).
 
@@ -98,9 +102,12 @@ a big table, so an index wins), a sequential scan on `customers` (small
 enough table that scanning it beats indexing it), then joined them with a
 hash join since neither side was tiny. `cost` is the planner's *estimate*
 before running anything; `actual time` and `rows` are what really happened.
-The gap between estimated and actual rows is the single most useful number on
-this whole output: a wide gap means the planner's statistics are lying to it,
-and every decision built on that estimate downstream is suspect too.
+One of the most useful numbers on this whole output is the gap between
+estimated and actual rows. A wide gap means the planner misjudged the
+selectivity somewhere, and every decision built on that estimate downstream
+is suspect too. Stale statistics are one common cause, but correlated
+columns, skewed values, and expressions the planner can't reason about well
+show up just as often.
 
 ## Executing: pulling rows through a tree
 
@@ -119,8 +126,14 @@ sitting at the leaves.
 
 Data flows bottom-up, one tuple at a time, in response to pulls flowing
 top-down, which is why `LIMIT 10` can be so much cheaper than the row count
-in the plan implies: the executor stops pulling as soon as ten rows have come
-out the top, and nodes further down never have to produce the rest.
+in the plan implies for a streaming node like a scan or an index lookup: the
+executor stops pulling as soon as ten rows have come out the top, and nodes
+further down never have to produce the rest. Not every node cooperates,
+though. A `Sort` sitting above a `LIMIT` usually still has to consume most or
+all of its input before it can hand back the first row, since it needs to
+see everything before it knows the ordering (Postgres can shortcut this with
+a top-N heapsort when it knows only a few rows are needed, but even that
+still reads every input row, just without holding onto all of them).
 
 ## Buffers: the layer between the executor and disk
 
@@ -146,22 +159,30 @@ first one happened to warm the cache for the second.
 
 ## Disk: what actually gets read
 
-When a page isn't cached, the buffer manager reads it from disk in fixed
-8&nbsp;KB blocks. Postgres never reads a single row on its own, always a
-whole page of them, which is part of why sequential scans of a well-packed
-table can beat index lookups that jump around unpredictably: sequential reads
-are one of the few things spinning and even solid-state storage still does
-measurably faster than random ones.
+When a page isn't cached, the buffer manager reads it from disk in Postgres'
+normal page size of 8&nbsp;KB (configurable at compile time, but 8&nbsp;KB on
+virtually every real install). Postgres never reads a single row on its own,
+always a whole page of them, which is part of why sequential scans of a
+well-packed table can beat index lookups that jump around unpredictably:
+sequential reads are one of the few things spinning and even solid-state
+storage still does measurably faster than random ones.
 
 A row wider than roughly 2&nbsp;KB triggers **TOAST** (The Oversized-Attribute
-Storage Technique): Postgres compresses and moves the oversized column into a
-separate table automatically, so a `SELECT` that never touches a large `jsonb`
-or `text` column doesn't pay to read it at all. And every write goes through
-the **WAL** (write-ahead log) before it touches the actual table file, which
-is a durability mechanism more than a read-path concern, but it's the reason
-Postgres can promise a committed transaction survives a crash: the log hit
-disk before the transaction reported success, regardless of when the table's
-own pages get flushed.
+Storage Technique): Postgres compresses the oversized value, moves it out to
+a separate TOAST table, or does both, whichever combination gets the row
+small enough to fit on a page, automatically. A `SELECT` that never touches a
+large `jsonb` or `text` column doesn't pay to read the out-of-line data at
+all. And every change is protected by the **WAL** (write-ahead log): the log
+record for a change has to reach durable storage before the data page it
+modified is allowed to, not before the page is touched in memory. This is a
+durability mechanism more than a read-path concern, but it's the reason a
+committed transaction can survive a crash. By default, Postgres waits for a
+transaction's WAL record to be flushed before reporting the commit as
+successful, which is what makes that guarantee real. It's a configurable
+guarantee, though, not an absolute one: setting `synchronous_commit = off`
+trades it away on purpose, letting Postgres report success before the WAL
+write is durable, in exchange for not paying that flush's latency on every
+commit.
 
 ## Where this actually bites in practice
 
@@ -178,10 +199,14 @@ plain index on `email`, because the value actually stored in the index is the
 untransformed one. Either match the index to the query (`CREATE INDEX ON
 users (lower(email))`) or match the query to the index.
 
-**An implicit type mismatch.** Comparing a `text` column to a numeric literal,
-or an untyped parameter from an ORM, can silently push Postgres onto a
-sequential scan even with an index sitting right there, since the planner
-can't use an index it isn't confident matches the comparison being made.
+**A cast on the indexed side.** Comparing a column to a value of a mismatched
+type, often an untyped parameter sent by an ORM, can force Postgres to
+resolve the comparison by casting the column itself rather than the
+constant. That turns a plain column reference into an expression, a plain
+index on the column no longer matches it, and Postgres falls back to a
+sequential scan. When an obviously-indexable query isn't using its index,
+check the actual condition `EXPLAIN` shows rather than the SQL you wrote, and
+make sure the application is sending the type the column actually is.
 
 **The N+1 pattern.** One query becomes N+1 queries when an ORM lazy-loads a
 relation inside a loop. Each one individually plans, executes, and reports
@@ -190,15 +215,21 @@ single one of them will tell you nothing's wrong.
 
 **Reading `EXPLAIN` instead of `EXPLAIN ANALYZE`.** Plain `EXPLAIN` only shows
 estimates. It never runs the query, so it can't show you where the estimate
-and reality diverged. Always reach for `ANALYZE, BUFFERS` when you're actually
-debugging, not just `EXPLAIN` on its own.
+and reality diverged. For a slow `SELECT`, reach for `EXPLAIN (ANALYZE,
+BUFFERS)` instead, whenever it's safe to actually run the query. Keep in mind
+`ANALYZE` really does execute the statement, which matters a lot on an
+`INSERT`, `UPDATE`, or `DELETE`: wrap it in `BEGIN; ...; ROLLBACK;` if you
+want the real plan without the real side effects.
 
 ## A short checklist
 
 - Use `EXPLAIN (ANALYZE, BUFFERS)`, not plain `EXPLAIN`, when diagnosing a
-  slow query.
-- Compare estimated vs. actual row counts first: a wide gap means stale
-  statistics, not a bad query.
+  slow query, but never run it on a write statement outside a transaction
+  you're prepared to roll back.
+- Compare estimated vs. actual row counts first: a wide gap means the planner
+  misjudged selectivity somewhere (stale statistics, correlated columns, and
+  skewed data are the usual suspects), not necessarily that the query itself
+  is wrong.
 - Run `ANALYZE` manually after a large bulk load instead of waiting for
   autovacuum.
 - Don't wrap an indexed column in a function unless you've indexed that exact

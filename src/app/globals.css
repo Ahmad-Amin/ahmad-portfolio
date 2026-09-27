@@ -47,4 +47,15 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
   }
+
+  /* rehype-pretty-code (Shiki) sets --shiki-light/--shiki-dark as inline
+     custom properties on each highlighted token span; which one actually
+     paints depends on which of these two rules is active. */
+  pre[data-language] span {
+    color: var(--shiki-light);
+  }
+
+  .dark pre[data-language] span {
+    color: var(--shiki-dark);
+  }
 }

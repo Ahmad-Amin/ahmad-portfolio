@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
 import { mdxComponents } from "@/components/mdx-components";
+import { mdxOptions } from "@/lib/mdx";
 import { Section } from "@/components/section";
 import { RecentPosts } from "@/components/blog/recent-posts";
 import { TableOfContents } from "@/components/blog/table-of-contents";
@@ -133,7 +134,11 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
 
             {showToc && <MobileTableOfContents headings={headings} />}
 
-            <MDXRemote source={post.content} components={mdxComponents} />
+            <MDXRemote
+              source={post.content}
+              components={mdxComponents}
+              options={{ mdxOptions }}
+            />
 
             <div className="mt-16 border-t border-border pt-8">
               <div className="mb-10">
