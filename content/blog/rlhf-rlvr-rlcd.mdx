@@ -11,7 +11,7 @@ for? Line up RLHF, RLVR, and RLCD next to each other and they're each
 answering a genuinely different question, not just three names for
 "reinforcement learning, but newer."
 
-## RLHF — what do humans prefer?
+## RLHF: what do humans prefer?
 
 Reinforcement Learning from Human Feedback is the one most people have
 already heard of, because it's a big part of how base language models turned
@@ -24,11 +24,11 @@ response A, response B ──▶ human picks the better one ──▶ reward
 
 The question being optimized for is basically **"which response would a
 person prefer?"** That's a good proxy for tone, helpfulness, and not being
-weird — but it's still a preference judgment, not a correctness check. A
+weird, but it's still a preference judgment, not a correctness check. A
 human can prefer a confident, well-written wrong answer over an awkwardly
 phrased correct one.
 
-## RLVR — what can we verify?
+## RLVR: what can we verify?
 
 Reinforcement Learning with Verifiable Rewards drops the human out of the
 loop for the cases where you don't need one. If the output can be checked
@@ -40,17 +40,17 @@ output ──▶ run it against a checker (tests pass? math correct? constraint 
 
 Did the code pass the test suite. Was the math answer right. Did the
 generated SQL actually satisfy the query. The question shifts from "would a
-human like this" to **"can we verify this is correct?"** — which is exactly
+human like this" to **"can we verify this is correct?"**, which is exactly
 why RLVR has been so effective in coding and math specifically: those are
 domains where "correct" has a checkable definition that doesn't need a human
 in the room.
 
-## RLCD — how confident *should* the model be?
+## RLCD: how confident *should* the model be?
 
 This is the one I hadn't run into until I looked at what [TypeSafe AI built
 into Jev](/blog/jev-typesafe-ai-system-one-models): Reinforcement Learning
 for Calibrated Decisions. Instead of training the model to produce good text,
-RLCD trains it to produce a bounded decision with a probability attached —
+RLCD trains it to produce a bounded decision with a probability attached,
 something like:
 
 ```
@@ -61,7 +61,7 @@ reject: 0.09
 RLHF asks whether a human likes the response. RLVR asks whether the response
 is correct. RLCD asks something stranger: **is the model's stated confidence
 actually trustworthy?** A model that's well-calibrated and says "80%
-confident" a hundred times should be right on roughly eighty of them — not
+confident" a hundred times should be right on roughly eighty of them, not
 55, not 99. Getting the *decision* right isn't the same claim as getting the
 *confidence* right, and most models today have never been trained to make
 that second claim honestly. They'll say "I'm certain" when they're guessing
@@ -76,7 +76,7 @@ Put the three side by side and the progression reads almost like a sentence:
 ## Why the last one might matter most
 
 The first two questions are about getting a single output right. The third
-one is about knowing when you're *not* sure — and that distinction gets more
+one is about knowing when you're *not* sure, and that distinction gets more
 important, not less, as models are given more room to act on their own. A
 system that can only produce an answer, with no honest sense of how shaky
 that answer is, either guesses with the same conviction every time or leans
@@ -85,9 +85,9 @@ A system that knows when it's on solid ground versus guessing can escalate
 selectively instead.
 
 Good AI systems don't just need to make decisions. They need to know when
-they're uncertain enough to ask for help — and that's a training problem,
+they're uncertain enough to ask for help, and that's a training problem,
 not a prompting one. TypeSafe makes this same argument from their side in
-[their machine learning primer](https://docs.typesafe.ai/introduction/machine-learning-primer) —
+[their machine learning primer](https://docs.typesafe.ai/introduction/machine-learning-primer),
 worth reading if you want the full case for why they bet on calibrated
 decisions over chat-style RLHF in the first place. And if you just want the
 technical definition of the training method itself, Sanity's glossary has a

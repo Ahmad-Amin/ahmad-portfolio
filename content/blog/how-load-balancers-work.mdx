@@ -7,7 +7,7 @@ tags: ["load-balancing", "devops", "aws"]
 
 One server is easy. You deploy to it, point a domain at it, and you're done.
 Then traffic grows, or you want deploys that don't take the site down, so you
-add a second server — and a new question shows up: which one does a request go
+add a second server, and a new question shows up: which one does a request go
 to?
 
 That's the job of a load balancer. It's also the part of your infrastructure
@@ -65,18 +65,18 @@ Nginx and HAProxy can act as either kind.
 
 The algorithm decides which server gets the next request. The common ones:
 
-- **Round robin** — each server in turn. It's simple, it's the default almost
+- **Round robin**: each server in turn. It's simple, it's the default almost
   everywhere, and it's fine when requests cost roughly the same and the servers
   are the same size.
-- **Weighted round robin** — the same idea, but bigger servers get a
+- **Weighted round robin**: the same idea, but bigger servers get a
   proportionally bigger share. Useful when the pool isn't uniform, or when you
   want to send a small slice of traffic to a new version.
-- **Least connections** — send the request to whichever server has the fewest
+- **Least connections**: send the request to whichever server has the fewest
   active connections. This is the better choice when request durations vary a
   lot, or connections are long-lived (WebSockets, streaming responses), where
   round robin can pile several slow requests onto one unlucky server. On an AWS
   ALB the equivalent is called least outstanding requests.
-- **IP hash** — hash the client's IP to pick a server, so the same client keeps
+- **IP hash**: hash the client's IP to pick a server, so the same client keeps
   landing on the same one. It's a cheap form of stickiness, but everyone behind
   one office network or mobile carrier hashes to the same server.
 

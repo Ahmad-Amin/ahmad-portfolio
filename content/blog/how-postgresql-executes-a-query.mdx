@@ -1,0 +1,214 @@
+---
+title: "How PostgreSQL actually executes a query"
+date: "2026-09-27"
+excerpt: "What happens between hitting enter on a SELECT and the rows coming back: parser, planner, executor, the buffer manager, and when it finally touches disk."
+tags: ["postgresql", "databases", "performance"]
+---
+
+Most of the APIs I've built are, underneath the routes and the serializers, a
+thin layer over Postgres. For a long time that layer was a black box to me: you
+write a `SELECT`, you hit enter, rows come back a few milliseconds later. The
+first real performance bug I chased in production (a query that was fine in
+dev and fell over under load) only made sense once I stopped treating that gap
+as a black box. This is what's actually happening in it.
+
+```
+SQL text ──▶ Parser ──▶ Planner ──▶ Executor ──▶ Buffer Manager ──▶ Disk
+```
+
+## Parsing: turning text into a tree
+
+The parser's only job is grammar. It checks that your SQL is syntactically
+valid and turns it into a parse tree. It has no idea yet whether `customers`
+is a real table or `emial` is a typo for `email`.
+
+That checking happens right after, in a step Postgres calls the *analyzer*:
+it resolves every table and column name against the actual schema, and
+resolves data types so it knows `created_at >= '2026-09-01'` is comparing a
+timestamp to a timestamp, not a string to a string. If your query references
+a view, one more step called the *rewriter* substitutes the view's definition
+in place, so by the time planning starts, the planner never has to know a
+view was involved at all.
+
+None of this touches a single row of data. It's pure text-to-structure work,
+and it's also where a typo'd column name actually gets caught, well before
+anything about performance is decided.
+
+## Planning: choosing how to run it
+
+This is the part worth spending the most time understanding, because it's
+where "fast" and "slow" get decided. Postgres doesn't run your query the way
+you wrote it. It runs whichever *plan* the planner estimates will be
+cheapest, and there's usually more than one way to answer the same question.
+
+For `WHERE created_at >= '2026-09-01'`, the planner can:
+
+- **Sequential scan**: read every row in the table and check the condition
+  on each one. Simple, and actually the right choice when a large fraction of
+  the table matches, since reading everything sequentially beats jumping
+  around an index.
+- **Index scan**: use an index on `created_at` to jump straight to the
+  matching rows. Wins when the condition matches a small slice of the table.
+
+The planner picks between these using **cost estimates**, not guesses: costs
+built from real statistics about your data: row counts, how many distinct
+values a column has, the shape of its distribution. Those statistics come
+from `ANALYZE`, which Postgres' autovacuum daemon runs automatically as
+tables change. If they go stale (say, a bulk import that autovacuum hasn't
+caught up to yet), the planner is costing plans against a table that no
+longer exists, and it can confidently pick a bad one.
+
+The other big planning decision is **join order and join algorithm** once
+more than one table is involved:
+
+- **Nested loop**: for each row on one side, scan the other side looking for
+  a match. Cheap when one side is small.
+- **Hash join**: build a hash table from the smaller side, then scan the
+  larger side probing it. The default for joining two sizeable tables.
+- **Merge join**: walk both sides in sorted order together. Wins when the
+  data is already sorted (or an index provides that order for free).
+
+You can see all of this directly with `EXPLAIN`:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT o.id, o.total, c.name
+FROM orders o
+JOIN customers c ON c.id = o.customer_id
+WHERE o.created_at >= '2026-09-01';
+```
+
+```
+Hash Join  (cost=1.09..458.32 rows=1200 width=48) (actual time=0.045..3.812 rows=1187 loops=1)
+  Hash Cond: (o.customer_id = c.id)
+  Buffers: shared hit=142 read=8
+  ->  Index Scan using orders_created_at_idx on orders o  (cost=0.29..410.15 rows=1200 width=24) (actual time=0.018..2.201 rows=1187 loops=1)
+        Index Cond: (created_at >= '2026-09-01 00:00:00'::timestamp)
+        Buffers: shared hit=98 read=8
+  ->  Hash  (cost=0.65..0.65 rows=50 width=32) (actual time=0.019..0.020 rows=50 loops=1)
+        Buckets: 1024  Batches: 1  Memory Usage: 11kB
+        ->  Seq Scan on customers c  (cost=0.00..0.65 rows=50 width=32) (actual time=0.005..0.009 rows=50 loops=1)
+              Buffers: shared hit=1
+Planning Time: 0.312 ms
+Execution Time: 3.902 ms
+```
+
+Read it inside out: Postgres chose an index scan on `orders` (small slice of
+a big table, so an index wins), a sequential scan on `customers` (small
+enough table that scanning it beats indexing it), then joined them with a
+hash join since neither side was tiny. `cost` is the planner's *estimate*
+before running anything; `actual time` and `rows` are what really happened.
+The gap between estimated and actual rows is the single most useful number on
+this whole output: a wide gap means the planner's statistics are lying to it,
+and every decision built on that estimate downstream is suspect too.
+
+## Executing: pulling rows through a tree
+
+The plan the planner settles on is a tree, and the executor runs it with what
+Postgres calls the **Volcano model**: every node in the tree exposes the same
+`next()`-style interface, and the top node pulls one row at a time by asking
+its children for one, who ask their children, and so on down to the scans
+sitting at the leaves.
+
+```
+          Hash Join            ◀── caller asks this node for the next row
+          /        \
+  Index Scan    Seq Scan + Hash
+  (orders)      (customers)
+```
+
+Data flows bottom-up, one tuple at a time, in response to pulls flowing
+top-down, which is why `LIMIT 10` can be so much cheaper than the row count
+in the plan implies: the executor stops pulling as soon as ten rows have come
+out the top, and nodes further down never have to produce the rest.
+
+## Buffers: the layer between the executor and disk
+
+The executor doesn't read pages off disk itself. Every request for a row goes
+through the **buffer manager** first, which keeps a cache of recently used
+disk pages in memory: `shared_buffers`, sized once at server startup.
+
+That's exactly what the `Buffers:` lines in the `EXPLAIN ANALYZE BUFFERS`
+output above are showing:
+
+- **`shared hit`**: the page was already sitting in `shared_buffers`. No
+  disk I/O at all.
+- **`shared read`**: the page had to be pulled in from the OS page cache or,
+  if that missed too, from actual disk.
+
+A query with a high hit ratio can look identical in row count and plan shape
+to one that's constantly missing the cache, while running an order of
+magnitude slower, and the *duration* alone won't tell you which one you're
+looking at. The buffer counts will. This is why `EXPLAIN ANALYZE` on its own
+undersells what's happening: two runs of the same query can report similar
+timings while one did real disk I/O and the other didn't, purely because the
+first one happened to warm the cache for the second.
+
+## Disk: what actually gets read
+
+When a page isn't cached, the buffer manager reads it from disk in fixed
+8&nbsp;KB blocks. Postgres never reads a single row on its own, always a
+whole page of them, which is part of why sequential scans of a well-packed
+table can beat index lookups that jump around unpredictably: sequential reads
+are one of the few things spinning and even solid-state storage still does
+measurably faster than random ones.
+
+A row wider than roughly 2&nbsp;KB triggers **TOAST** (The Oversized-Attribute
+Storage Technique): Postgres compresses and moves the oversized column into a
+separate table automatically, so a `SELECT` that never touches a large `jsonb`
+or `text` column doesn't pay to read it at all. And every write goes through
+the **WAL** (write-ahead log) before it touches the actual table file, which
+is a durability mechanism more than a read-path concern, but it's the reason
+Postgres can promise a committed transaction survives a crash: the log hit
+disk before the transaction reported success, regardless of when the table's
+own pages get flushed.
+
+## Where this actually bites in practice
+
+Nearly every "why is this query slow" investigation is one of these, once you
+know where to look:
+
+**Stale statistics.** A bulk import or a sudden shift in data distribution
+that autovacuum hasn't caught up to yet leaves the planner costing plans
+against a table shape that no longer exists. Running `ANALYZE` manually right
+after a large import is cheap insurance.
+
+**A function on an indexed column.** `WHERE lower(email) = 'x'` can't use a
+plain index on `email`, because the value actually stored in the index is the
+untransformed one. Either match the index to the query (`CREATE INDEX ON
+users (lower(email))`) or match the query to the index.
+
+**An implicit type mismatch.** Comparing a `text` column to a numeric literal,
+or an untyped parameter from an ORM, can silently push Postgres onto a
+sequential scan even with an index sitting right there, since the planner
+can't use an index it isn't confident matches the comparison being made.
+
+**The N+1 pattern.** One query becomes N+1 queries when an ORM lazy-loads a
+relation inside a loop. Each one individually plans, executes, and reports
+fine in isolation; it's only the aggregate that's slow, and `EXPLAIN` on any
+single one of them will tell you nothing's wrong.
+
+**Reading `EXPLAIN` instead of `EXPLAIN ANALYZE`.** Plain `EXPLAIN` only shows
+estimates. It never runs the query, so it can't show you where the estimate
+and reality diverged. Always reach for `ANALYZE, BUFFERS` when you're actually
+debugging, not just `EXPLAIN` on its own.
+
+## A short checklist
+
+- Use `EXPLAIN (ANALYZE, BUFFERS)`, not plain `EXPLAIN`, when diagnosing a
+  slow query.
+- Compare estimated vs. actual row counts first: a wide gap means stale
+  statistics, not a bad query.
+- Run `ANALYZE` manually after a large bulk load instead of waiting for
+  autovacuum.
+- Don't wrap an indexed column in a function unless you've indexed that exact
+  expression.
+- Watch the buffer hit ratio, not just the duration: two runs can time the
+  same and mean very different things.
+- If a plan changes shape after a data migration, suspect statistics before
+  suspecting the query.
+
+The planner is doing real, statistics-driven cost estimation, not guessing.
+But an estimate is only as good as the statistics behind it, and almost every
+"the database got slow for no reason" story I've run into turns out to be a
+reason the planner just didn't know about yet.
