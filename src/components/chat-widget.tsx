@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react";
 import { useChat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
+import { generateId, type UIMessage } from "ai";
 import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle, Send, Sparkles, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -118,6 +118,21 @@ function messageText(parts: UIMessage["parts"]): string {
     .join("");
 }
 
+function greetingMessages(): UIMessage[] {
+  return [
+    {
+      id: "greeting",
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: `Hey, I'm ${firstName}'s AI assistant. Tell me what you're working on and I'll let you know how he can help.`,
+        },
+      ],
+    },
+  ];
+}
+
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-3">
@@ -137,25 +152,22 @@ export function ChatWidget() {
   const [pulse, setPulse] = useState(false);
   const [teaser, setTeaser] = useState(false);
   const [input, setInput] = useState("");
+  const [ended, setEnded] = useState(false);
+  // The id doubles as the conversation id the server logs chats under, and
+  // useChat starts a brand new chat whenever it changes, so "Start a new chat"
+  // is just a fresh id.
+  const [chatId, setChatId] = useState(() => generateId());
   const scrollRef = useRef<HTMLDivElement>(null);
   const interactedRef = useRef(false);
 
-  const { messages, sendMessage, status, error } = useChat<UIMessage>({
-    messages: [
-      {
-        id: "greeting",
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: `Hey, I'm ${firstName}'s AI assistant. Tell me what you're working on and I'll let you know how he can help.`,
-          },
-        ],
-      },
-    ],
+  const { messages, sendMessage, status, error, stop } = useChat<UIMessage>({
+    id: chatId,
+    messages: greetingMessages(),
   });
 
   const busy = status === "submitted" || status === "streaming";
+  // Nothing to end until the visitor has actually said something.
+  const canEnd = !ended && messages.some((message) => message.role === "user");
 
   useEffect(() => {
     if (!open) return;
@@ -237,6 +249,19 @@ export function ChatWidget() {
     setInput("");
   }
 
+  function endChat() {
+    // Cut off a reply that's still streaming; the transcript stays visible.
+    void stop();
+    setInput("");
+    setEnded(true);
+  }
+
+  function startNewChat() {
+    setChatId(generateId());
+    setEnded(false);
+    setInput("");
+  }
+
   return (
     <>
       <div className="fixed right-4 bottom-4 z-50 sm:right-6 sm:bottom-6">
@@ -255,10 +280,19 @@ export function ChatWidget() {
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
                   <Sparkles className="size-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">Ask {firstName}</p>
                   <p className="text-xs text-muted">AI assistant · trained on his background</p>
                 </div>
+                {canEnd && (
+                  <button
+                    type="button"
+                    onClick={endChat}
+                    className="shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                  >
+                    End chat
+                  </button>
+                )}
               </div>
 
               <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -297,30 +331,48 @@ export function ChatWidget() {
                 </div>
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="flex items-center gap-2 border-t border-border p-3"
-              >
-                <input
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Type a message…"
-                  aria-label="Message"
-                  maxLength={MAX_USER_MESSAGE_CHARS}
-                  className="min-w-0 flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
-                />
-                <button
-                  type="submit"
-                  disabled={busy || input.trim().length === 0}
-                  aria-label="Send message"
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
+              {ended ? (
+                <div
+                  role="status"
+                  className="flex flex-col items-center gap-3 border-t border-border px-4 py-4 text-center"
                 >
-                  <Send className="size-4" />
-                </button>
-              </form>
-              <p className="px-4 pb-3 text-center text-[11px] text-muted">
-                Chats are logged to help improve this bot.
-              </p>
+                  <p className="text-sm text-muted">Chat ended. Thanks for stopping by!</p>
+                  <button
+                    type="button"
+                    onClick={startNewChat}
+                    className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+                  >
+                    Start a new chat
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <form
+                    onSubmit={handleSubmit}
+                    className="flex items-center gap-2 border-t border-border p-3"
+                  >
+                    <input
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      placeholder="Type a message…"
+                      aria-label="Message"
+                      maxLength={MAX_USER_MESSAGE_CHARS}
+                      className="min-w-0 flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
+                    />
+                    <button
+                      type="submit"
+                      disabled={busy || input.trim().length === 0}
+                      aria-label="Send message"
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
+                    >
+                      <Send className="size-4" />
+                    </button>
+                  </form>
+                  <p className="px-4 pb-3 text-center text-[11px] text-muted">
+                    Chats are logged to help improve this bot.
+                  </p>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
