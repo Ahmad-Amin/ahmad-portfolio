@@ -318,6 +318,9 @@ export function ChatWidget() {
                   <Send className="size-4" />
                 </button>
               </form>
+              <p className="px-4 pb-3 text-center text-[11px] text-muted">
+                Chats are logged to help improve this bot.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>

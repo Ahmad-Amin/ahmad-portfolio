@@ -5,12 +5,36 @@ import {
   streamText,
   tool,
   type ModelMessage,
+  type UIMessage,
 } from "ai";
 import { Resend } from "resend";
 import { buildSystemPrompt } from "@/lib/bot-context";
+import { logChatTurn } from "@/lib/chat-log";
 import { parseChatRequest } from "@/lib/chat-input";
 import { leadInputSchema, leadSubject } from "@/lib/chat-lead";
 import { profile } from "@/data/profile";
+
+type LoosePart = { type: string; text?: string; state?: string; output?: { success?: boolean } };
+
+function uiMessageText(message: UIMessage | undefined): string {
+  const parts = (message?.parts ?? []) as LoosePart[];
+  return parts
+    .map((part) => (part.type === "text" ? (part.text ?? "") : ""))
+    .join("")
+    .trim();
+}
+
+// The saveLead tool result rides along on the response message, so whether a
+// lead was captured can be read straight off it.
+function leadWasCaptured(message: UIMessage | undefined): boolean {
+  const parts = (message?.parts ?? []) as LoosePart[];
+  return parts.some(
+    (part) =>
+      part.type === "tool-saveLead" &&
+      part.state === "output-available" &&
+      part.output?.success === true,
+  );
+}
 
 function messageContentText(content: ModelMessage["content"]): string {
   if (typeof content === "string") return content;
@@ -108,6 +132,9 @@ export async function POST(req: Request) {
     convertToModelMessages(input.messages),
   ]);
 
+  const userAt = Date.now();
+  const userText = uiMessageText(input.messages[input.messages.length - 1]);
+
   const result = streamText({
     model: anthropic("claude-haiku-4-5-20251001"),
     system,
@@ -117,5 +144,24 @@ export async function POST(req: Request) {
     maxOutputTokens: 1024,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    // Runs when the reply finishes, fails, or the visitor walks away
+    // mid-stream, so every exchange is logged for the daily digest whether or
+    // not a lead came out of it.
+    onEnd: async ({ responseMessage, outcome }) => {
+      if (!input.conversationId) return;
+      try {
+        await logChatTurn({
+          conversationId: input.conversationId,
+          userText,
+          userAt,
+          assistantText: uiMessageText(responseMessage),
+          leadCaptured: leadWasCaptured(responseMessage),
+          failed: outcome.status === "failed",
+        });
+      } catch (error) {
+        console.error("[chat] Failed to log conversation:", error);
+      }
+    },
+  });
 }

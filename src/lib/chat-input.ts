@@ -10,7 +10,13 @@ const MAX_TOTAL_CHARS = 30_000;
 
 // Only the fields the chat widget legitimately sends. Roles are limited to
 // user/assistant so a browser can't inject its own "system" instructions.
+// The chat widget's useChat instance id, sent with every request; it stays the
+// same for one widget session, which makes it the conversation id for logging.
+const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
 const bodySchema = z.object({
+  // Lenient on purpose: an odd id just means "don't log", never a failed chat.
+  id: z.unknown().optional(),
   messages: z
     .array(
       z.object({
@@ -24,7 +30,7 @@ const bodySchema = z.object({
 });
 
 export type ChatInputResult =
-  | { ok: true; messages: UIMessage[] }
+  | { ok: true; messages: UIMessage[]; conversationId?: string }
   | { ok: false; status: 400 | 413; error: string };
 
 const invalid: ChatInputResult = { ok: false, status: 400, error: "Invalid request." };
@@ -64,7 +70,11 @@ export function parseChatRequest(rawBody: string): ChatInputResult {
   if (messages.length === 0 || messages[messages.length - 1].role !== "user") return invalid;
   if (messages.reduce((sum, m) => sum + messageLength(m), 0) > MAX_TOTAL_CHARS) return tooLong;
 
-  return { ok: true, messages };
+  const { id } = parsed.data;
+  const conversationId =
+    typeof id === "string" && CONVERSATION_ID_PATTERN.test(id) ? id : undefined;
+
+  return { ok: true, messages, conversationId };
 }
 
 function messageLength(message: UIMessage): number {
