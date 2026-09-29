@@ -1,0 +1,218 @@
+---
+title: "How PostgreSQL actually finds your data"
+date: "2026-09-29"
+excerpt: "A closer look at the part I glossed over last time: what a B-tree index actually looks like on disk, when Postgres reaches for a bitmap scan instead, and how an index-only scan skips the table entirely."
+tags: ["postgresql", "databases", "performance"]
+---
+
+Last time I wrote about [how PostgreSQL executes a query](/blog/how-postgresql-executes-a-query),
+I covered the whole pipeline: parser, planner, executor, the buffer manager,
+disk. In the planning section I waved my hands a little at "index scan" and
+moved on, because doing it justice needed its own post. This is that post:
+what a B-tree index actually looks like, and the three different ways Postgres
+can use one to find your rows.
+
+## The baseline: reading everything
+
+The comparison point for all of this is the sequential scan: read every page
+of the table in order, check each row against the filter, keep the ones that
+match. No index needed, no setup cost, and for a query that matches a large
+fraction of the table it's often the fastest plan there is, exactly because
+reading pages in physical order is cheap and an index would just add overhead
+for no benefit. The interesting cases are the ones where most rows don't
+match, and reading the whole table would be wasted work.
+
+## What a B-tree index actually looks like
+
+A B-tree index is not a list of pointers sitting next to your table. It's its
+own tree-shaped structure, built entirely out of the same 8&nbsp;KB pages
+everything else in Postgres uses:
+
+```
+                    [ root page ]
+                    /     |     \
+             [ internal ] ... [ internal ]
+             /    |    \
+      [ leaf ] [ leaf ] [ leaf ] ── [ leaf ] ── [ leaf ]
+```
+
+- The **leaf pages** hold the actual index entries: each one is a `(key
+  value, TID)` pair, where the TID is the physical address of the matching
+  row in the table's heap. They're kept in sorted order.
+- **Internal pages** don't store data at all, just separator keys and
+  pointers down to the next level, the same idea as an index in the back of a
+  book telling you which chapter to open.
+- Leaf pages are also linked to their neighbors left and right, forming a
+  chain. That's what lets a range query (`WHERE created_at > '2026-09-01'`) or
+  an `ORDER BY` walk sideways across leaves once it's found the starting
+  point, instead of climbing back up to the root for every next row.
+
+A lookup for a single key starts at the root, compares the key against the
+separators, and follows the matching pointer down, one page per level, until
+it reaches a leaf. Because each page holds many entries, not just one or two,
+the tree stays shallow. It's routine for an index on a table with tens of
+millions of rows to still be only three or four levels deep, so a point
+lookup costs a handful of page reads, not thousands.
+
+Finding the TID isn't the end, though. In the common case the executor still
+has to fetch the actual row from the heap to get the rest of the columns, and
+that heap page probably isn't next to the index entry that pointed at it, so
+this is where an index scan's random I/O comes from: cheap, shallow tree
+traversal, followed by one comparatively expensive jump out to wherever that
+row happens to live on disk.
+
+## Column order isn't cosmetic
+
+An index on more than one column only helps in a specific order: equality
+conditions on the leading columns, plus one inequality on the first column
+after those, actually narrow which part of the tree gets scanned. Everything
+after that is just extra filtering within the range the index already found.
+
+```sql
+CREATE INDEX ON orders (customer_id, status);
+```
+
+- `WHERE customer_id = 42` and `WHERE customer_id = 42 AND status = 'paid'`
+  both narrow the scan, since `customer_id` is the leading column.
+- `WHERE customer_id = 42 AND status > 'paid'` narrows on `customer_id`, then
+  uses the inequality on `status` to narrow further.
+- `WHERE status = 'paid'` on its own gets no benefit from this index at all.
+  `status` isn't the leading column, so Postgres has no starting point in the
+  tree to jump to. A separate index on `status` by itself would be the fix,
+  not reordering this one.
+
+The rule is about the order the columns were declared in when the index was
+created, not the order they happen to appear in your `WHERE` clause.
+
+## When a single index scan isn't the plan
+
+A plain index scan walks one B-tree and fetches matching rows one at a time.
+That stops being the best option once a query needs to combine conditions
+from more than one index, and this is where a **bitmap scan** comes in.
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, customer_id, status, total
+FROM orders
+WHERE status = 'pending' OR customer_id = 42;
+```
+
+```
+Bitmap Heap Scan on orders  (cost=8.60..245.32 rows=410 width=24) (actual time=0.052..0.891 rows=398 loops=1)
+  Recheck Cond: ((status = 'pending'::text) OR (customer_id = 42))
+  Heap Blocks: exact=210
+  Buffers: shared hit=224
+  ->  BitmapOr  (cost=8.60..8.60 rows=410 width=0) (actual time=0.041..0.042 rows=0 loops=1)
+        ->  Bitmap Index Scan on orders_status_idx  (cost=0.00..4.52 rows=380 width=0) (actual time=0.028..0.028 rows=372 loops=1)
+              Index Cond: (status = 'pending'::text)
+        ->  Bitmap Index Scan on orders_customer_id_idx  (cost=0.00..4.02 rows=30 width=0) (actual time=0.011..0.011 rows=26 loops=1)
+              Index Cond: (customer_id = 42)
+Planning Time: 0.203 ms
+Execution Time: 0.932 ms
+```
+
+Read the `->` lines first: Postgres scans the `status` index and the
+`customer_id` index separately, each producing an in-memory bitmap of which
+heap pages have a matching row, then `BitmapOr`s the two bitmaps together.
+Only then does it visit the heap, and it visits those pages in **physical
+order**, not index order, which is a real trade: cheaper, more sequential I/O
+against the table, at the cost of losing whatever ordering either index would
+have given you. If the query had an `ORDER BY`, this plan would need a
+separate sort step afterward to make up for it.
+
+The `Recheck Cond` line is there because of `work_mem`. When there's room to
+track every matching row individually, the bitmap is exact and the recheck is
+mostly a formality. When there isn't, and the table is large enough that the
+exact bitmap would be too big, Postgres switches to a **lossy** bitmap that
+tracks whole pages instead of individual rows. A page marked in a lossy
+bitmap might only have one matching row out of a hundred on it, so every row
+on that page has to be rechecked against the actual condition once it's
+fetched. `Heap Blocks: exact=210` in the output above means every page in
+this run was tracked precisely. If you see `lossy=N` show up there on a real
+query, raising `work_mem` is usually what gets you back to exact.
+
+## Skipping the heap entirely
+
+The other direction a plan can go is doing less work than a normal index
+scan, not more. An **index-only scan** answers the query straight from the
+index and never touches the heap at all, provided every column the query
+needs is already sitting in that index.
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT customer_id FROM orders WHERE customer_id = 42;
+```
+
+```
+Index Only Scan using orders_customer_id_idx on orders  (cost=0.29..4.31 rows=26 width=4) (actual time=0.015..0.021 rows=26 loops=1)
+  Index Cond: (customer_id = 42)
+  Heap Fetches: 0
+  Buffers: shared hit=4
+Planning Time: 0.089 ms
+Execution Time: 0.034 ms
+```
+
+`Heap Fetches: 0` is the number worth watching here. An index entry only
+proves a row exists, not that it's *visible* to your transaction; a
+concurrent delete or update could have happened since. Postgres checks that
+using the **visibility map**, a separate, much smaller bitmap that tracks
+which heap pages contain only rows every current transaction is guaranteed to
+see. If the page's bit is set, the index-only scan trusts it and skips the
+heap. If it isn't, because that page has been written to recently and
+`VACUUM` hasn't caught up to it yet, Postgres has to fall back to fetching the
+row anyway, and `Heap Fetches` climbs. On a table with a lot of write churn,
+the same query's plan can look identical while quietly doing far more real
+work, and the only place that shows up is this one counter.
+
+The practical lever is `INCLUDE`, for when the column you need isn't part of
+what you're filtering on:
+
+```sql
+CREATE INDEX ON orders (customer_id) INCLUDE (status);
+```
+
+`status` rides along in the index as plain payload. It doesn't help narrow
+the scan, but `SELECT status FROM orders WHERE customer_id = 42` can now be
+answered without the index needing `status` as a search key at all.
+
+## Why "there's an index" doesn't always mean it gets used
+
+Nearly every "why isn't this using my index" question comes down to one of
+these:
+
+**Low selectivity.** If the condition matches a third of the table, a
+sequential scan reading pages in order beats an index scan doing that many
+random heap fetches. This is a cost decision, not a bug.
+
+**Wrong leading column.** A multicolumn index only narrows the scan starting
+from its first column. A condition that skips it gets little or nothing from
+that index, as covered above.
+
+**A column the index doesn't have.** `SELECT *` (or any column outside the
+index) rules out an index-only scan immediately, even if every `WHERE`
+condition is perfectly indexed.
+
+**A stale visibility map.** An index-only scan that should be nearly free can
+still be doing a heap fetch per row if the table has been written to
+recently. Check `Heap Fetches` before concluding the index itself is the
+problem.
+
+## A short checklist
+
+- Read the plan tree from the innermost `->` outward: bitmap scans build
+  bottom-up, from index scans to `BitmapOr`/`BitmapAnd` to the heap scan on
+  top.
+- A multicolumn index only narrows the scan starting from its leftmost
+  column; conditions on the others are just filtered within that range.
+- `Heap Blocks: lossy=N` on a bitmap scan means `work_mem` wasn't big enough
+  for an exact bitmap; that's usually fixable by raising it.
+- `Heap Fetches` on an index-only scan should be close to zero on a
+  read-heavy table; if it isn't, look at `VACUUM`, not the index.
+- `INCLUDE` extra columns in an index when you need them in the `SELECT` but
+  not the `WHERE`, so an index-only scan stays possible.
+
+None of these three scan types is the "correct" one in general. They're
+different trade-offs between how much of the index gets read, how much
+random I/O the heap costs, and how much memory is available to track matches
+along the way, and the planner is choosing between them the same way it
+chooses between join algorithms: by estimated cost, not by a fixed rule.

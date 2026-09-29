@@ -243,3 +243,9 @@ The planner is doing real, statistics-driven cost estimation, not guessing.
 But an estimate is only as good as the statistics behind it, and almost every
 "the database got slow for no reason" story I've run into turns out to be a
 reason the planner just didn't know about yet.
+
+I glossed over what "index scan" actually means here, on purpose: [how
+PostgreSQL actually finds your data](/blog/how-postgresql-finds-your-data)
+picks that up, covering what a B-tree index looks like on disk, when Postgres
+reaches for a bitmap scan instead of a plain one, and how an index-only scan
+skips the table entirely.
