@@ -21,7 +21,7 @@ export async function GithubRow() {
     : [null, null];
 
   return (
-    <Panel as="li">
+    <Panel as="div">
       <h3 className="text-xl font-semibold text-foreground">GitHub</h3>
       <p className="mt-1 text-muted">
         Where the code lives — repos, contribution activity, and what I&apos;ve been building.

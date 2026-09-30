@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { motion } from "motion/react";
 import clsx from "clsx";
 import { navLinks, type NavLink } from "@/data/nav-links";
 import { profile } from "@/data/profile";
@@ -67,7 +68,10 @@ export function Nav() {
 
   return (
     <header className="fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4">
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
         className={clsx(
           "flex w-full items-center justify-between gap-2 rounded-full border border-border/60 bg-surface/80 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-md transition-[max-width] duration-300 ease-out",
           scrolled ? "max-w-3xl" : "max-w-4xl",
@@ -127,7 +131,7 @@ export function Nav() {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {open && (
         <nav

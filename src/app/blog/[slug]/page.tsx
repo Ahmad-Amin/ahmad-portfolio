@@ -6,6 +6,7 @@ import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
 import { mdxComponents } from "@/components/mdx-components";
 import { mdxOptions } from "@/lib/mdx";
 import { Section } from "@/components/section";
+import { BootIn, BootItem } from "@/components/boot-in";
 import { RecentPosts } from "@/components/blog/recent-posts";
 import { TableOfContents } from "@/components/blog/table-of-contents";
 import { MobileTableOfContents } from "@/components/blog/mobile-table-of-contents";
@@ -56,7 +57,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">) {
+export default async function BlogPostPage({
+  params,
+}: PageProps<"/blog/[slug]">) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
   if (!post) notFound();
@@ -65,7 +68,9 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   const index = allPosts.findIndex((p) => p.slug === post.slug);
   const newer = index > 0 ? allPosts[index - 1] : null;
   const older = index < allPosts.length - 1 ? allPosts[index + 1] : null;
-  const recentPosts = allPosts.filter((p) => p.slug !== post.slug).slice(0, RECENT_POSTS_COUNT);
+  const recentPosts = allPosts
+    .filter((p) => p.slug !== post.slug)
+    .slice(0, RECENT_POSTS_COUNT);
 
   const headings = extractHeadings(post.content);
   const showToc = headings.length >= MIN_TOC_HEADINGS;
@@ -108,29 +113,36 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
       <Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
         <div className="mx-auto grid max-w-272 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
           <article className="min-w-0">
-            <h1
-              id="post-heading"
-              className="text-display-sm font-semibold tracking-tight text-foreground"
-            >
-              {post.title}
-            </h1>
-            <p className="mt-4 font-mono text-sm tabular-nums text-muted">
-              <time dateTime={post.date}>{formatPostDate(post.date)}</time> · {post.readingTime}
-            </p>
+            <BootIn>
+              <BootItem>
+                <h1
+                  id="post-heading"
+                  className="text-display-sm font-semibold tracking-tight text-foreground"
+                >
+                  {post.title}
+                </h1>
+              </BootItem>
+              <BootItem>
+                <p className="mt-4 font-mono text-sm tabular-nums text-muted">
+                  <time dateTime={post.date}>{formatPostDate(post.date)}</time>{" "}
+                  · {post.readingTime}
+                </p>
+              </BootItem>
 
-            {post.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {post.tags.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/blog?tag=${encodeURIComponent(tag)}`}
-                    className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
-                  >
-                    {tag}
-                  </Link>
-                ))}
-              </div>
-            )}
+              {post.tags.length > 0 && (
+                <BootItem className="mt-4 flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <Link
+                      key={tag}
+                      href={`/blog?tag=${encodeURIComponent(tag)}`}
+                      className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+                    >
+                      {tag}
+                    </Link>
+                  ))}
+                </BootItem>
+              )}
+            </BootIn>
 
             {showToc && <MobileTableOfContents headings={headings} />}
 
@@ -144,7 +156,10 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
               <div className="mb-10">
                 <SubscribeForm />
               </div>
-              <ShareButtons title={post.title} url={`${siteUrl}/blog/${post.slug}`} />
+              <ShareButtons
+                title={post.title}
+                url={`${siteUrl}/blog/${post.slug}`}
+              />
               <PostNav newer={newer} older={older} />
             </div>
           </article>

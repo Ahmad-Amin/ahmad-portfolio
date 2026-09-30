@@ -8,7 +8,7 @@ export async function NpmRow() {
   const packages = await getNpmPackages(profile.npmUsername);
 
   return (
-    <Panel as="li">
+    <Panel as="div">
       <h3 className="text-xl font-semibold text-foreground">npm</h3>
       <p className="mt-1 text-muted">Open-source packages other developers can install straight into their own projects.</p>
 

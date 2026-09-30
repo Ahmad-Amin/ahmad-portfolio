@@ -3,6 +3,7 @@ import { GithubRow } from "@/components/footprint/github-row";
 import { NpmRow } from "@/components/footprint/npm-row";
 import { YoutubeRow } from "@/components/footprint/youtube-row";
 import { LiveProjectsRow } from "@/components/footprint/live-projects-row";
+import { StaggerList } from "@/components/footprint/stagger-list";
 
 export function Footprint() {
   return (
@@ -17,12 +18,12 @@ export function Footprint() {
         Everywhere I build, ship, and share — pulled live, not just claimed.
       </p>
 
-      <ul className="mt-12 flex list-none flex-col gap-6 sm:gap-8">
+      <StaggerList>
         <GithubRow />
         <NpmRow />
         <YoutubeRow />
         <LiveProjectsRow />
-      </ul>
+      </StaggerList>
     </Section>
   );
 }

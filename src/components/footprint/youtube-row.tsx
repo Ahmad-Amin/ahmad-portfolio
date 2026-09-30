@@ -37,7 +37,7 @@ export async function YoutubeRow() {
   ]);
 
   return (
-    <Panel as="li">
+    <Panel as="div">
       <h3 className="text-xl font-semibold text-foreground">YouTube</h3>
       <p className="mt-1 text-muted">
         Videos where I break down what I&apos;m building and what I&apos;ve learned.

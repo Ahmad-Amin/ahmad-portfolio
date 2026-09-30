@@ -1,6 +1,21 @@
+"use client";
+
+import { motion } from "motion/react";
 import { experience } from "@/data/experience";
 import { Section } from "@/components/section";
 import { Panel } from "@/components/panel";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.15 } },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+};
 
 export function Experience() {
   return (
@@ -12,9 +27,15 @@ export function Experience() {
         Experience
       </h2>
 
-      <ul className="mt-12 flex list-none flex-col gap-6 sm:gap-8">
+      <motion.ul
+        variants={container}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, margin: "-80px" }}
+        className="mt-12 flex list-none flex-col gap-6 sm:gap-8"
+      >
         {experience.map((job) => (
-          <Panel as="li" key={`${job.company}-${job.role}`}>
+          <Panel as={motion.li} variants={item} key={`${job.company}-${job.role}`}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-foreground">{job.role}</h3>
@@ -40,7 +61,7 @@ export function Experience() {
             </ul>
           </Panel>
         ))}
-      </ul>
+      </motion.ul>
     </Section>
   );
 }

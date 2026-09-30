@@ -176,7 +176,7 @@ export function LiveProjectsRow() {
   const [selected, setSelected] = useState<LiveProject | null>(null);
 
   return (
-    <Panel as="li">
+    <Panel as="div">
       <h3 className="text-xl font-semibold text-foreground">Live Projects</h3>
       <p className="mt-1 text-muted">Shipped products you can try right now — a web app, a browser extension, and a mobile app.</p>
 
