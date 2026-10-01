@@ -29,6 +29,10 @@ export interface LoggedConversation {
   updatedAt: number;
   leadCaptured: boolean;
   errorCount: number;
+  // Model tokens spent on this conversation, summed over its turns. Absent on
+  // conversations logged before usage tracking.
+  inputTokens?: number;
+  outputTokens?: number;
   messages: LoggedMessage[];
 }
 
@@ -177,6 +181,8 @@ interface LogTurnInput {
   assistantText: string;
   leadCaptured: boolean;
   failed: boolean;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 // Appends one exchange (the visitor's message and the bot's reply) to its
@@ -205,6 +211,8 @@ export async function logChatTurn(turn: LogTurnInput): Promise<void> {
       updatedAt: now,
       leadCaptured: (existing?.leadCaptured ?? false) || turn.leadCaptured,
       errorCount: (existing?.errorCount ?? 0) + (turn.failed ? 1 : 0),
+      inputTokens: (existing?.inputTokens ?? 0) + (turn.inputTokens ?? 0),
+      outputTokens: (existing?.outputTokens ?? 0) + (turn.outputTokens ?? 0),
       messages: messages.slice(-MAX_MESSAGES_PER_CONVERSATION),
     });
   } catch (error) {

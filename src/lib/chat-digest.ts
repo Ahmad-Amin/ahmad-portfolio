@@ -11,12 +11,19 @@ export const MAX_DIGEST_CONVERSATIONS = 200;
 const MAX_ANALYSIS_TRANSCRIPT_CHARS = 40_000;
 const MAX_BOT_INSTRUCTION_CHARS = 25_000;
 
+// Claude Haiku 4.5 list prices, per million tokens. Only used to show an
+// estimated spend in the digest; update these if the chat model changes.
+const INPUT_USD_PER_MTOK = 1;
+const OUTPUT_USD_PER_MTOK = 5;
+
 export interface DigestStats {
   conversations: number;
   visitorMessages: number;
   leadsCaptured: number;
   leftAfterOneMessage: number;
   failedReplies: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export function computeStats(conversations: LoggedConversation[]): DigestStats {
@@ -24,8 +31,12 @@ export function computeStats(conversations: LoggedConversation[]): DigestStats {
   let leadsCaptured = 0;
   let leftAfterOneMessage = 0;
   let failedReplies = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
 
   for (const conversation of conversations) {
+    inputTokens += conversation.inputTokens ?? 0;
+    outputTokens += conversation.outputTokens ?? 0;
     const fromVisitor = conversation.messages.filter((m) => m.role === "user").length;
     visitorMessages += fromVisitor;
     if (fromVisitor <= 1) leftAfterOneMessage += 1;
@@ -39,7 +50,26 @@ export function computeStats(conversations: LoggedConversation[]): DigestStats {
     leadsCaptured,
     leftAfterOneMessage,
     failedReplies,
+    inputTokens,
+    outputTokens,
   };
+}
+
+// Tokens and estimated spend for the chat itself (the digest's own analysis call
+// isn't included). "Input per message" is the number to watch: if it creeps up,
+// the bot's prompt or context is growing.
+function formatUsage(stats: DigestStats): string[] {
+  if (stats.inputTokens === 0 && stats.outputTokens === 0) return [];
+
+  const cost =
+    (stats.inputTokens * INPUT_USD_PER_MTOK + stats.outputTokens * OUTPUT_USD_PER_MTOK) / 1_000_000;
+  const perMessage =
+    stats.visitorMessages > 0 ? Math.round(stats.inputTokens / stats.visitorMessages) : 0;
+
+  return [
+    `- Model tokens: ${stats.inputTokens.toLocaleString("en-US")} in, ${stats.outputTokens.toLocaleString("en-US")} out (about $${cost.toFixed(2)})`,
+    `- Input tokens per visitor message: ${perMessage.toLocaleString("en-US")}`,
+  ];
 }
 
 const dateTimeFormat = new Intl.DateTimeFormat("en-GB", {
@@ -112,6 +142,7 @@ export function formatDigest({
       `- Leads captured: ${stats.leadsCaptured}`,
       `- Left after one message: ${stats.leftAfterOneMessage}`,
       `- Replies that failed: ${stats.failedReplies}`,
+      ...formatUsage(stats),
     ].join("\n"),
   ];
 

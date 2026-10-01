@@ -11,6 +11,7 @@ import { IntroOverlay } from "@/components/intro-overlay";
 import { CommandPalette } from "@/components/command-palette";
 import { getAllPosts, getAllSeries } from "@/lib/blog";
 import { getAllCaseStudies } from "@/lib/case-studies";
+import { getKnownPaths } from "@/lib/bot-content";
 import { profile } from "@/data/profile";
 import { feedPath, siteUrl } from "@/lib/site";
 import { introScript } from "@/lib/intro";
@@ -104,7 +105,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </main>
             <Footer />
-            <ChatWidget />
+            <ChatWidget
+              latestPosts={palettePosts.slice(0, 3).map((post) => ({
+                title: post.title,
+                path: `/blog/${post.slug}`,
+              }))}
+              series={paletteSeries.map((entry) => ({
+                title: entry.title,
+                path: `/blog/series/${entry.slug}`,
+              }))}
+              caseStudyPaths={Object.fromEntries(
+                getAllCaseStudies().map((study) => [study.project, `/case-studies/${study.slug}`]),
+              )}
+              knownPaths={getKnownPaths()}
+            />
             <CommandPalette
               posts={palettePosts}
               seriesList={paletteSeries}

@@ -9,6 +9,7 @@ import {
 } from "ai";
 import { Resend } from "resend";
 import { buildSystemPrompt } from "@/lib/bot-context";
+import { siteContent } from "@/lib/bot-tools";
 import { logChatTurn } from "@/lib/chat-log";
 import { parseChatRequest } from "@/lib/chat-input";
 import { leadInputSchema, leadSubject } from "@/lib/chat-lead";
@@ -70,19 +71,59 @@ const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const requestLog = new Map<string, number[]>();
 
+// Past this many tracked IPs, drop the ones that have gone quiet, so a flood of
+// one-off addresses can't grow the map without limit.
+const MAX_TRACKED_IPS = 5_000;
+
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+  if (requestLog.size > MAX_TRACKED_IPS) {
+    for (const [key, times] of requestLog) {
+      if (now - times[times.length - 1] >= RATE_WINDOW_MS) requestLog.delete(key);
+    }
+  }
   const recent = (requestLog.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   recent.push(now);
   requestLog.set(ip, recent);
   return recent.length > RATE_LIMIT;
 }
 
-const saveLead = tool({
+// Only this site's own widget should call this endpoint. A browser always says
+// where a request came from, so one that says another site is a different
+// page trying to spend our tokens through its visitors' browsers (each from its
+// own IP, which the per-IP limit can't catch). Scripts can forge these headers,
+// so this closes the browser route; the rate limit and the spend limit on the
+// Anthropic account cover the rest.
+function isCrossSite(req: Request): boolean {
+  // Modern browsers say outright whether a request is same-origin, and a proxy or
+  // CDN in front of the site can't change that. When it's there, it decides.
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite) return fetchSite !== "same-origin" && fetchSite !== "none";
+
+  // Older browsers only send Origin, which we compare with the host being asked.
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  try {
+    const hosts = [req.headers.get("host"), req.headers.get("x-forwarded-host")];
+    return !hosts.includes(new URL(origin).host);
+  } catch {
+    return true;
+  }
+}
+
+// Built per request so a single message can only ever send one lead email, however
+// many times the model is talked into calling it (each call is an email to Ahmad).
+function createSaveLead() {
+  let used = false;
+
+  return tool({
   description:
     "Save a visitor's contact info and what they want to build so Ahmad can follow up by email. Only call this once the visitor has clearly shared their name, email, and what they're interested in.",
   inputSchema: leadInputSchema,
   execute: async ({ name, email, whatTheyWantToBuild, notes }, { messages }) => {
+    if (used) return { success: false, error: "A lead was already saved for this message." };
+    used = true;
+
     const transcript = formatTranscript(messages) || "(no messages captured)";
 
     if (!resend) {
@@ -110,9 +151,16 @@ const saveLead = tool({
       return { success: false };
     }
   },
-});
+  });
+}
 
 export async function POST(req: Request) {
+  if (isCrossSite(req)) return new Response("Forbidden", { status: 403 });
+  // Forcing JSON also makes a cross-site browser request need a CORS preflight, which it fails.
+  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return new Response("Expected a JSON request.", { status: 415 });
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return new Response("Chat is not configured.", { status: 503 });
   }
@@ -128,7 +176,7 @@ export async function POST(req: Request) {
   }
 
   const [system, modelMessages] = await Promise.all([
-    buildSystemPrompt(),
+    buildSystemPrompt(input.pathname),
     convertToModelMessages(input.messages),
   ]);
 
@@ -139,9 +187,14 @@ export async function POST(req: Request) {
     model: anthropic("claude-haiku-4-5-20251001"),
     system,
     messages: modelMessages,
-    tools: { saveLead },
-    stopWhen: stepCountIs(5),
-    maxOutputTokens: 1024,
+    tools: { saveLead: createSaveLead(), siteContent },
+    // search, read, answer, and one more for saveLead
+    stopWhen: stepCountIs(4),
+    maxOutputTokens: 600,
+    // Low on purpose: this bot speaks as a real person about real facts, so it should
+    // be consistent, not creative. It also makes jailbreaks that rely on a lucky
+    // sample much less likely to land.
+    temperature: 0.3,
   });
 
   return result.toUIMessageStreamResponse({
@@ -151,6 +204,9 @@ export async function POST(req: Request) {
     onEnd: async ({ responseMessage, outcome }) => {
       if (!input.conversationId) return;
       try {
+        // Summed over every model call this turn (a search or read is an extra
+        // call). Missing if the visitor left mid-stream, which just means no count.
+        const usage = await Promise.resolve(result.totalUsage).catch(() => undefined);
         await logChatTurn({
           conversationId: input.conversationId,
           userText,
@@ -158,6 +214,8 @@ export async function POST(req: Request) {
           assistantText: uiMessageText(responseMessage),
           leadCaptured: leadWasCaptured(responseMessage),
           failed: outcome.status === "failed",
+          inputTokens: usage?.inputTokens,
+          outputTokens: usage?.outputTokens,
         });
       } catch (error) {
         console.error("[chat] Failed to log conversation:", error);
