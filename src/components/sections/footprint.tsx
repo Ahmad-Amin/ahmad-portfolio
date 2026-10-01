@@ -4,8 +4,14 @@ import { NpmRow } from "@/components/footprint/npm-row";
 import { YoutubeRow } from "@/components/footprint/youtube-row";
 import { LiveProjectsRow } from "@/components/footprint/live-projects-row";
 import { StaggerList } from "@/components/footprint/stagger-list";
+import { getAllCaseStudies } from "@/lib/case-studies";
 
 export function Footprint() {
+  // project slug -> case study slug, so a project's modal can link to its write-up.
+  const caseStudies = Object.fromEntries(
+    getAllCaseStudies().map((study) => [study.project, study.slug]),
+  );
+
   return (
     <Section id="footprint" labelledBy="footprint-heading">
       <h2
@@ -22,7 +28,7 @@ export function Footprint() {
         <GithubRow />
         <NpmRow />
         <YoutubeRow />
-        <LiveProjectsRow />
+        <LiveProjectsRow caseStudies={caseStudies} />
       </StaggerList>
     </Section>
   );

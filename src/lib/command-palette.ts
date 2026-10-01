@@ -2,7 +2,7 @@
 // event on window, so they don't need to share state with it.
 export const OPEN_PALETTE_EVENT = "open-command-palette";
 
-export const GROUP_ORDER = ["Navigate", "Posts", "Series", "Actions", "Links"] as const;
+export const GROUP_ORDER = ["Navigate", "Case studies", "Posts", "Series", "Actions", "Links"] as const;
 export type PaletteGroup = (typeof GROUP_ORDER)[number];
 
 export interface SearchableItem {

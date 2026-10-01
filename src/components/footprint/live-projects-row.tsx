@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, Globe, Puzzle, Smartphone, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Globe, Puzzle, Smartphone, type LucideIcon } from 'lucide-react';
 import { liveProjects, type LiveProject, type ProjectPlatform } from '@/data/live-projects';
 import { Panel } from '@/components/panel';
 import { Modal } from '@/components/modal';
@@ -172,7 +173,7 @@ function ImageCarousel({ project }: { project: LiveProject }) {
   );
 }
 
-export function LiveProjectsRow() {
+export function LiveProjectsRow({ caseStudies = {} }: { caseStudies?: Record<string, string> }) {
   const [selected, setSelected] = useState<LiveProject | null>(null);
 
   return (
@@ -240,15 +241,26 @@ export function LiveProjectsRow() {
               </div>
             )}
 
-            <a
-              href={selected.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
-            >
-              {PLATFORM_CTA[selected.platform]}
-              <ExternalLink className="size-4" />
-            </a>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <a
+                href={selected.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+              >
+                {PLATFORM_CTA[selected.platform]}
+                <ExternalLink className="size-4" />
+              </a>
+              {caseStudies[selected.slug] && (
+                <Link
+                  href={`/case-studies/${caseStudies[selected.slug]}`}
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:text-accent"
+                >
+                  Read case study
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </Modal>

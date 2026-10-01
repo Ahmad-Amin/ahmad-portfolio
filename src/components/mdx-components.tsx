@@ -1,9 +1,27 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import type { MDXComponents } from 'mdx/types';
 import { Panel } from '@/components/panel';
 import { nodeText, slugifyHeading } from '@/lib/toc';
 
+// For portrait phone screenshots, which the full-width `img` below would blow
+// up to a screen-high column. Wrap plain markdown images in it and they lay out
+// side by side at a phone-ish width:
+//   <ScreenshotRow>
+//   ![alt](/a.webp)
+//   ![alt](/b.webp)
+//   </ScreenshotRow>
+// (Children rather than a props array: next-mdx-remote blocks JS expressions
+// in MDX by default, which is worth keeping.)
+function ScreenshotRow({ children }: { children?: ReactNode }) {
+  return (
+    <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&_img]:mt-0 [&_p]:mt-0">
+      {children}
+    </div>
+  );
+}
+
 export const mdxComponents: MDXComponents = {
+  ScreenshotRow,
   h2: ({ children, ...props }) => (
     <h2
       id={slugifyHeading(nodeText(children))}

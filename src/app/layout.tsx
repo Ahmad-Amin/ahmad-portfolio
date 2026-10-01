@@ -10,6 +10,7 @@ import { ChatWidget } from "@/components/chat-widget";
 import { IntroOverlay } from "@/components/intro-overlay";
 import { CommandPalette } from "@/components/command-palette";
 import { getAllPosts, getAllSeries } from "@/lib/blog";
+import { getAllCaseStudies } from "@/lib/case-studies";
 import { profile } from "@/data/profile";
 import { feedPath, siteUrl } from "@/lib/site";
 import { introScript } from "@/lib/intro";
@@ -67,6 +68,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     tags,
     series,
   }));
+  const paletteCaseStudies = getAllCaseStudies().map(({ slug, title, liveProject }) => ({
+    slug,
+    title,
+    projectTitle: liveProject.title,
+  }));
   const paletteSeries = getAllSeries().map(({ slug, title }) => ({ slug, title }));
 
   return (
@@ -99,7 +105,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </main>
             <Footer />
             <ChatWidget />
-            <CommandPalette posts={palettePosts} seriesList={paletteSeries} />
+            <CommandPalette
+              posts={palettePosts}
+              seriesList={paletteSeries}
+              caseStudies={paletteCaseStudies}
+            />
           </MotionConfig>
         </ThemeProvider>
         <Analytics />

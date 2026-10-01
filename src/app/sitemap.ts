@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/site";
 import { getAllPosts, getAllSeries } from "@/lib/blog";
+import { getAllCaseStudies } from "@/lib/case-studies";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const posts = getAllPosts();
@@ -18,6 +19,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    ...getAllCaseStudies().map((study) => ({
+      url: `${siteUrl}/case-studies/${study.slug}`,
+      lastModified: new Date(study.date),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     ...getAllSeries().map((entry) => ({
       url: `${siteUrl}/blog/series/${entry.slug}`,
       lastModified: new Date(entry.posts[entry.posts.length - 1].date),

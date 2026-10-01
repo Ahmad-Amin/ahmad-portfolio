@@ -20,6 +20,7 @@ import {
   Calendar,
   CornerDownLeft,
   Copy,
+  Briefcase,
   Download,
   FileText,
   Mail,
@@ -72,12 +73,24 @@ export interface PaletteSeries {
   title: string;
 }
 
+export interface PaletteCaseStudy {
+  slug: string;
+  title: string;
+  // The project it covers, so searching the project name finds the case study.
+  projectTitle: string;
+}
+
 interface CommandPaletteProps {
   posts: PalettePost[];
   seriesList: PaletteSeries[];
+  caseStudies: PaletteCaseStudy[];
 }
 
-function buildItems(posts: PalettePost[], seriesList: PaletteSeries[]): Item[] {
+function buildItems(
+  posts: PalettePost[],
+  seriesList: PaletteSeries[],
+  caseStudies: PaletteCaseStudy[],
+): Item[] {
   const seriesTitle = new Map(seriesList.map((entry) => [entry.slug, entry.title]));
 
   const navigate: Item[] = navLinks.map((link) => ({
@@ -90,6 +103,16 @@ function buildItems(posts: PalettePost[], seriesList: PaletteSeries[]): Item[] {
       type: "route",
       href: link.kind === "route" ? link.href : `/#${link.id}`,
     },
+  }));
+
+  const caseStudyItems: Item[] = caseStudies.map((study) => ({
+    id: `case-study-${study.slug}`,
+    label: `${study.title} case study`,
+    hint: "Case study",
+    group: "Case studies",
+    keywords: `${study.projectTitle} project work portfolio`,
+    icon: Briefcase,
+    action: { type: "route", href: `/case-studies/${study.slug}` },
   }));
 
   const postItems: Item[] = posts.map((post) => ({
@@ -173,10 +196,10 @@ function buildItems(posts: PalettePost[], seriesList: PaletteSeries[]): Item[] {
     action: { type: "external", url: social.url },
   }));
 
-  return [...navigate, ...postItems, ...seriesItems, ...actions, ...links];
+  return [...navigate, ...caseStudyItems, ...postItems, ...seriesItems, ...actions, ...links];
 }
 
-export function CommandPalette({ posts, seriesList }: CommandPaletteProps) {
+export function CommandPalette({ posts, seriesList, caseStudies }: CommandPaletteProps) {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const listId = useId();
@@ -188,7 +211,7 @@ export function CommandPalette({ posts, seriesList }: CommandPaletteProps) {
   const [active, setActive] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const items = useMemo(() => buildItems(posts, seriesList), [posts, seriesList]);
+  const items = useMemo(() => buildItems(posts, seriesList, caseStudies), [posts, seriesList, caseStudies]);
   // Ranked within each group, then flattened in display order, so ArrowUp/Down
   // moves through the list exactly as it reads on screen.
   const grouped = useMemo(() => {
