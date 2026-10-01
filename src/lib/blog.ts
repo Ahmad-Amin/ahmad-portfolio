@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
+import { series, type SeriesInfo } from "@/data/series";
 
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 
@@ -10,12 +11,16 @@ export interface PostFrontmatter {
   date: string;
   excerpt: string;
   tags?: string[];
+  series?: string;
+  seriesOrder?: number;
 }
 
 export interface PostMeta extends PostFrontmatter {
   slug: string;
   readingTime: string;
   tags: string[];
+  series?: string;
+  seriesOrder?: number;
 }
 
 export interface Post extends PostMeta {
@@ -38,12 +43,26 @@ function readPost(slug: string): Post | null {
   const { data, content } = matter(raw);
   const frontmatter = data as PostFrontmatter;
 
+  // Fail the build on a mistyped series instead of silently creating a dead one.
+  if (frontmatter.series !== undefined) {
+    if (!(frontmatter.series in series)) {
+      throw new Error(
+        `Post "${slug}" has unknown series "${frontmatter.series}". Add it to src/data/series.ts.`,
+      );
+    }
+    if (typeof frontmatter.seriesOrder !== "number") {
+      throw new Error(`Post "${slug}" is in a series but has no numeric seriesOrder.`);
+    }
+  }
+
   return {
     slug,
     title: frontmatter.title,
     date: frontmatter.date,
     excerpt: frontmatter.excerpt,
     tags: frontmatter.tags ?? [],
+    series: frontmatter.series,
+    seriesOrder: frontmatter.seriesOrder,
     readingTime: readingTime(content).text,
     content,
   };
@@ -84,4 +103,33 @@ export function formatPostDate(date: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+export interface SeriesWithPosts extends SeriesInfo {
+  slug: string;
+  posts: PostMeta[];
+}
+
+// Posts of one series in reading order (by `seriesOrder`, not by date).
+export function getSeriesPosts(seriesSlug: string): PostMeta[] {
+  const posts = getAllPosts()
+    .filter((post) => post.series === seriesSlug)
+    .sort((a, b) => (a.seriesOrder ?? 0) - (b.seriesOrder ?? 0));
+
+  const seen = new Set<number>();
+  for (const post of posts) {
+    const order = post.seriesOrder ?? 0;
+    if (seen.has(order)) {
+      throw new Error(`Series "${seriesSlug}" has two posts with seriesOrder ${order}.`);
+    }
+    seen.add(order);
+  }
+  return posts;
+}
+
+// Only series that have at least one post, so empty entries never get a page.
+export function getAllSeries(): SeriesWithPosts[] {
+  return Object.entries(series)
+    .map(([slug, info]) => ({ slug, ...info, posts: getSeriesPosts(slug) }))
+    .filter((entry) => entry.posts.length > 0);
 }

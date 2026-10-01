@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import { getAllPosts, getPostBySlug, formatPostDate } from "@/lib/blog";
+import { getAllPosts, getPostBySlug, getSeriesPosts, formatPostDate } from "@/lib/blog";
+import { series } from "@/data/series";
 import { mdxComponents } from "@/components/mdx-components";
 import { mdxOptions } from "@/lib/mdx";
 import { Section } from "@/components/section";
@@ -12,6 +13,8 @@ import { TableOfContents } from "@/components/blog/table-of-contents";
 import { MobileTableOfContents } from "@/components/blog/mobile-table-of-contents";
 import { ShareButtons } from "@/components/blog/share-buttons";
 import { PostNav } from "@/components/blog/post-nav";
+import { SeriesBox } from "@/components/blog/series-box";
+import { SeriesNav } from "@/components/blog/series-nav";
 import { SubscribeForm } from "@/components/subscribe-form";
 import { extractHeadings } from "@/lib/toc";
 import { feedPath, siteUrl } from "@/lib/site";
@@ -71,6 +74,10 @@ export default async function BlogPostPage({
   const recentPosts = allPosts
     .filter((p) => p.slug !== post.slug)
     .slice(0, RECENT_POSTS_COUNT);
+
+  const seriesPosts = post.series ? getSeriesPosts(post.series) : [];
+  const seriesIndex = seriesPosts.findIndex((p) => p.slug === post.slug);
+  const seriesInfo = post.series ? series[post.series] : undefined;
 
   const headings = extractHeadings(post.content);
   const showToc = headings.length >= MIN_TOC_HEADINGS;
@@ -144,6 +151,10 @@ export default async function BlogPostPage({
               )}
             </BootIn>
 
+            {post.series && seriesPosts.length > 1 && (
+              <SeriesBox seriesSlug={post.series} posts={seriesPosts} currentSlug={post.slug} />
+            )}
+
             {showToc && <MobileTableOfContents headings={headings} />}
 
             <MDXRemote
@@ -160,6 +171,13 @@ export default async function BlogPostPage({
                 title={post.title}
                 url={`${siteUrl}/blog/${post.slug}`}
               />
+              {seriesInfo && seriesPosts.length > 1 && (
+                <SeriesNav
+                  seriesTitle={seriesInfo.title}
+                  previous={seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : null}
+                  next={seriesIndex < seriesPosts.length - 1 ? seriesPosts[seriesIndex + 1] : null}
+                />
+              )}
               <PostNav newer={newer} older={older} />
             </div>
           </article>

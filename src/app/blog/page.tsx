@@ -3,6 +3,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { ArrowUpRight, Rss } from "lucide-react";
 import { getAllPosts, getAllTags, formatPostDate } from "@/lib/blog";
+import { series } from "@/data/series";
 import { feedPath } from "@/lib/site";
 import { Section } from "@/components/section";
 import { Panel } from "@/components/panel";
@@ -155,6 +156,14 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
                       </time>{" "}
                       · {post.readingTime}
                     </p>
+                    {post.series && series[post.series] && (
+                      <Link
+                        href={`/blog/series/${post.series}`}
+                        className="relative z-10 rounded-full border border-accent/40 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                      >
+                        {series[post.series].title} · Part {post.seriesOrder}
+                      </Link>
+                    )}
                     {post.tags.map((tag) => (
                       <Link
                         key={tag}
