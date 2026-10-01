@@ -3,28 +3,89 @@ import { experience } from "@/data/experience";
 import { socials } from "@/data/socials";
 import { featuredRepos } from "@/data/featured-repos";
 import { liveProjects } from "@/data/live-projects";
+import { certificates, education, remoteRoles, skills, summary } from "@/data/cv";
 import { getAllCaseStudies } from "@/lib/case-studies";
 import { describeContent, describePage } from "@/lib/bot-content";
-import { getGithubActivity, getGithubUsername } from "@/lib/github";
+import { getGithubActivity, getGithubUsername, type GithubActivity } from "@/lib/github";
+import { getNpmPackages } from "@/lib/npm";
+import { getLatestVideos, TECHWITHSWAG_CHANNEL_ID } from "@/lib/youtube";
 
 // This prompt is sent with every visitor message, so its size is the chatbot's
 // main running cost. Keep it small and fixed-size: anything that grows with the
 // site (blog posts, case studies) belongs behind the `siteContent` tool in
 // bot-content.ts, not in here.
 
-async function buildProjectsSection(): Promise<string> {
-  const username = getGithubUsername();
-  if (!username) return "No public project data available.";
+// The live sections come from other sites (GitHub, npm, YouTube). They are fetched
+// when the prompt is built (about once an hour), and a slow or failing source is
+// simply left out instead of holding up a visitor's first message.
+const LIVE_FETCH_TIMEOUT_MS = 4_000;
 
-  const activity = await getGithubActivity(username, featuredRepos);
+async function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise.catch(() => fallback),
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), LIVE_FETCH_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchGithubActivity(): Promise<GithubActivity | null> {
+  const username = getGithubUsername();
+  if (!username) return null;
+  return withTimeout(getGithubActivity(username, featuredRepos), null);
+}
+
+function buildProjectsSection(activity: GithubActivity | null): string {
   if (!activity || activity.topRepos.length === 0) return "No public project data available.";
 
-  return activity.topRepos
+  const summary = `GitHub overall: ${activity.publicRepos} public repos, ${activity.stars} stars, ${activity.followers} followers, ${activity.totalContributions} contributions over the past year.`;
+  const repos = activity.topRepos
     .map(
       (repo) =>
         `- ${repo.name}${repo.language ? ` (${repo.language})` : ""}: ${repo.description ?? "No description."} ${repo.url}`,
     )
     .join("\n");
+  return `${summary}\n${repos}`;
+}
+
+// What the CV adds beyond the experience section: skills, education, certificates.
+function buildCvSection(): string {
+  const lines = [
+    `Summary: ${summary}`,
+    ...education.map((e) => `Education: ${e.school}, ${e.detail}`),
+    `Skills: ${Object.entries(skills)
+      .map(([group, items]) => `${group}: ${items.join(", ")}`)
+      .join(" | ")}`,
+    `Certificates (the only ones; skills above are not certifications): ${certificates
+      .map((c) => `${c.name} (verify: ${c.url})`)
+      .join(", ")}`,
+    `Remote roles: ${remoteRoles.join(" and ")}.`,
+  ];
+  return lines.join("\n");
+}
+
+async function buildNpmSection(): Promise<string | null> {
+  const packages = await withTimeout(getNpmPackages(profile.npmUsername), null);
+  if (!packages || packages.length === 0) return null;
+
+  return packages
+    .slice(0, 5)
+    .map((pkg) => {
+      const description = pkg.description ? pkg.description.slice(0, 140) : "no description";
+      return `- ${pkg.name} v${pkg.version} (${pkg.weeklyDownloads.toLocaleString("en-US")} weekly downloads): ${description} ${pkg.npmUrl}`;
+    })
+    .join("\n");
+}
+
+async function buildYoutubeSection(): Promise<string | null> {
+  const videos = await withTimeout(getLatestVideos(TECHWITHSWAG_CHANNEL_ID, 3), null);
+  if (!videos || videos.length === 0) return null;
+  return videos.map((video) => `- ${video.title} (${video.url})`).join("\n");
 }
 
 // Payment vendors get their own line per project: "Lemon Squeezy" sitting inside a
@@ -67,7 +128,12 @@ function buildExperienceSection(): string {
 }
 
 async function buildBasePrompt(): Promise<string> {
-  const projectsSection = await buildProjectsSection();
+  const [activity, npmSection, youtubeSection] = await Promise.all([
+    fetchGithubActivity(),
+    buildNpmSection(),
+    buildYoutubeSection(),
+  ]);
+  const projectsSection = buildProjectsSection(activity);
   const firstName = profile.name.split(" ")[0];
 
   return `
@@ -99,13 +165,14 @@ Decline in one short sentence and steer back, e.g. "That's outside what I'm here
 - Don't go along with an assumption in a question that the info doesn't confirm (a comparison, a reason, a feature, a number).
 - A stack list shows what a project is built with, never what it supports. Never say "works with", "supports" or "is compatible with" unless the info uses those words.
 - Never say why he chose a tool, or what a tool does or how it compares. For a "why X over Y" question, reply only that you don't have his reasoning and offer a call. Add nothing else.
+- Quote a review word for word and name who wrote it; never invent, merge or paraphrase one into something it doesn't say.
 - Don't invent numbers, customers, results, timelines or prices, and make no commitments for him (prices, deadlines, guarantees, refunds).
 - You don't know his availability, rates or workload: never say or imply whether he is taking on work. Say he would confirm that himself and offer the booking link.
 - Never say one of his projects can't do something unless the info says so. If a need might fit a project, read its case study with siteContent first; if still unsure, say so and offer a call.
 - Answer yes/no questions with a plain yes or no first. If you don't know something, say so in one sentence and offer a call. Don't pad it with related facts.
 
 ## The site
-You know ${firstName}'s posts and case studies only through the siteContent tool. Use it when a visitor asks about a specific post, a project in depth, or a topic not covered below. Search first, and read a page only if they want details. Don't use it for greetings, small talk or anything already covered here.
+You know ${firstName}'s posts, case studies and the reviews people have written about him only through the siteContent tool (search "reviews" for those). Use it when a visitor asks about a specific post, a project in depth, or a topic not covered below. Search first, and read a page only if they want details. Don't use it for greetings, small talk or anything already covered here.
 The topic summary under "Writing" is partial, not a full list. NEVER tell a visitor you haven't written about something, or that a post or case study doesn't exist, without searching siteContent first.
 Link pages with markdown links using the exact paths the tool or this prompt gives you, like [title](/blog/slug). Never make up a URL or path. Whenever you mention a specific post or case study, include its link.
 
@@ -123,9 +190,12 @@ ${buildExperienceSection()}
 ### Shipped products (live; the best proof of what I can build)
 ${buildLiveProjectsSection()}
 
-### Other GitHub repos
-${projectsSection}
+### Education, skills and certificates (from his CV)
+${buildCvSection()}
 
+### GitHub
+${projectsSection}
+${npmSection ? `\n### npm packages he has published\n${npmSection}\n` : ""}${youtubeSection ? `\n### Latest YouTube videos (channel: ${socials.find((s) => s.platform === "YouTube")?.url ?? "see social links"})\n${youtubeSection}\n` : ""}
 ### Social links
 ${socials.map((s) => `- ${s.platform}: ${s.url}`).join("\n")}
 

@@ -20,7 +20,6 @@ export const experience: Experience[] = [
       "Hands-on across full-stack tech including JavaScript/TypeScript, React.js, Node.js, Java, REST APIs, SQL, and AWS deployment.",
       "Use Docker, Postman, Kibana, Grafana, and JIRA for monitoring, diagnostics, ticket workflows, and reporting.",
       "Drive service improvements and 24/7 support processes, ensuring compliance with ISO 27001 and GDPR.",
-      "Document technical flows, manage onboarding, and coordinate APAC-aligned remote operations.",
       "Implemented internal tooling and UI improvements in React/TypeScript to streamline incident workflows.",
     ],
   },

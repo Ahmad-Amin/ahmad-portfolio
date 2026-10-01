@@ -1,11 +1,13 @@
 import { getAllPosts, getAllSeries, getPostBySlug } from "@/lib/blog";
 import { getAllCaseStudies } from "@/lib/case-studies";
+import { profile } from "@/data/profile";
+import { testimonials } from "@/data/testimonials";
 
 // The chatbot never carries the site's writing in its prompt (that would grow
 // with every post you publish). It finds and reads content on demand through
 // the `siteContent` tool, which is backed by this index.
 
-export type ContentKind = "post" | "case study" | "series";
+export type ContentKind = "post" | "case study" | "series" | "reviews";
 
 interface ContentEntry {
   kind: ContentKind;
@@ -40,7 +42,9 @@ function buildIndex(): ContentEntry[] {
     path: `/case-studies/${study.slug}`,
     summary: study.tagline,
     tags: [study.liveProject.title, ...study.liveProject.technologies],
-    body: study.content,
+    // The project card on the home page has its own, longer description; it is
+    // part of what the site says about the project, so it is read along with it.
+    body: `${study.content}\n\n## Project card summary (from the home page)\n${study.liveProject.description}`,
   }));
 
   const series: ContentEntry[] = getAllSeries().map((entry) => ({
@@ -52,7 +56,33 @@ function buildIndex(): ContentEntry[] {
     body: entry.posts.map((post, index) => `${index + 1}. ${post.title} (/blog/${post.slug})`).join("\n"),
   }));
 
-  return [...posts, ...caseStudies, ...series];
+  // The Reviews section on the home page. One entry, so a single search finds
+  // them all and nothing in the prompt grows when a review is added.
+  const reviews: ContentEntry[] =
+    testimonials.length === 0
+      ? []
+      : [
+          {
+            kind: "reviews",
+            title: "Reviews from clients and colleagues",
+            path: "/#testimonials",
+            summary: `What ${testimonials.length} people who worked with ${profile.name} say about him`,
+            tags: [
+              "reviews",
+              "testimonials",
+              "recommendations",
+              "feedback",
+              "clients",
+              "colleagues",
+              ...testimonials.map((t) => t.company),
+            ],
+            body: testimonials
+              .map((t) => `${t.name}, ${t.role}, ${t.company} (${t.linkedinUrl}):\n"${t.message}"`)
+              .join("\n\n"),
+          },
+        ];
+
+  return [...posts, ...caseStudies, ...series, ...reviews];
 }
 
 // Content only changes with a deploy, so production builds the index once per
