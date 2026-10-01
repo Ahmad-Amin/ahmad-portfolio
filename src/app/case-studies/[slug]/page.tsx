@@ -7,6 +7,7 @@ import { getAllCaseStudies, getCaseStudyBySlug } from "@/lib/case-studies";
 import { mdxComponents } from "@/components/mdx-components";
 import { mdxOptions } from "@/lib/mdx";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { BootIn, BootItem } from "@/components/boot-in";
 import { profile } from "@/data/profile";
 import { siteUrl } from "@/lib/site";
@@ -48,7 +49,8 @@ export default async function CaseStudyPage({ params }: PageProps<"/case-studies
   const { liveProject } = study;
 
   return (
-    <Section id="case-study" labelledBy="case-study-heading" className="pt-32 sm:pt-40">
+    <PageTransition>
+<Section id="case-study" labelledBy="case-study-heading" className="pt-32 sm:pt-40">
       <div className="mx-auto max-w-2xl">
         <BootIn>
           <BootItem>
@@ -129,5 +131,6 @@ export default async function CaseStudyPage({ params }: PageProps<"/case-studies
         </div>
       </div>
     </Section>
+</PageTransition>
   );
 }

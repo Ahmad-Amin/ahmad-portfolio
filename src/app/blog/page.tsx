@@ -6,6 +6,7 @@ import { getAllPosts, getAllTags, formatPostDate } from "@/lib/blog";
 import { series } from "@/data/series";
 import { feedPath } from "@/lib/site";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { Panel } from "@/components/panel";
 import { BootIn, BootItem } from "@/components/boot-in";
 import { SubscribeForm } from "@/components/subscribe-form";
@@ -56,7 +57,8 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
     : allPosts;
 
   return (
-    <Section id="blog" labelledBy="blog-heading" className="pt-32 sm:pt-40">
+    <PageTransition>
+<Section id="blog" labelledBy="blog-heading" className="pt-32 sm:pt-40">
       <BootIn className="mx-auto max-w-2xl">
         <BootItem className="flex items-baseline justify-between gap-4">
           <h1
@@ -190,5 +192,6 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
         </BootItem>
       </BootIn>
     </Section>
+</PageTransition>
   );
 }

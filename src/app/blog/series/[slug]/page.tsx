@@ -5,6 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { getAllSeries, formatPostDate } from "@/lib/blog";
 import { series } from "@/data/series";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { Panel } from "@/components/panel";
 import { BootIn, BootItem } from "@/components/boot-in";
 
@@ -29,7 +30,8 @@ export default async function SeriesPage({ params }: PageProps<"/blog/series/[sl
   if (!entry) notFound();
 
   return (
-    <Section id="series" labelledBy="series-heading" className="pt-32 sm:pt-40">
+    <PageTransition>
+<Section id="series" labelledBy="series-heading" className="pt-32 sm:pt-40">
       <BootIn className="mx-auto max-w-2xl">
         <BootItem>
           <p className="text-xs font-semibold tracking-wide text-accent uppercase">
@@ -70,6 +72,17 @@ export default async function SeriesPage({ params }: PageProps<"/blog/series/[sl
                 </p>
               </Panel>
             ))}
+            {entry.upcoming.map((part, index) => (
+              <li
+                key={part.order}
+                className="rounded-3xl border border-dashed border-border p-6 sm:p-8"
+              >
+                <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+                  Part {entry.posts.length + index + 1} · Coming soon
+                </p>
+                <p className="mt-1 text-xl font-semibold text-muted">{part.title}</p>
+              </li>
+            ))}
           </ol>
         </BootItem>
 
@@ -83,5 +96,6 @@ export default async function SeriesPage({ params }: PageProps<"/blog/series/[sl
         </BootItem>
       </BootIn>
     </Section>
+</PageTransition>
   );
 }

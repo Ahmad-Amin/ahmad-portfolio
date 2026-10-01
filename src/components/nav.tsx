@@ -73,6 +73,10 @@ export function Nav() {
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+        // Named so route transitions keep the nav still instead of fading it with the
+        // page. It has to be on this element, the one with the backdrop blur: a named
+        // ancestor would isolate it, so the blur could no longer see the page behind.
+        style={{ viewTransitionName: "site-header" }}
         className={clsx(
           "flex w-full items-center justify-between gap-2 rounded-full border border-border/60 bg-surface/80 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-md transition-[max-width] duration-300 ease-out",
           scrolled ? "max-w-3xl" : "max-w-4xl",

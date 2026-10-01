@@ -2,16 +2,17 @@ import Link from "next/link";
 import clsx from "clsx";
 import { ChevronDown } from "lucide-react";
 import type { PostMeta } from "@/lib/blog";
-import { series } from "@/data/series";
+import { series, type PlannedPart } from "@/data/series";
 
 interface SeriesBoxProps {
   seriesSlug: string;
   posts: PostMeta[];
   currentSlug: string;
+  upcoming?: PlannedPart[];
 }
 
 // Sits near the top of a post: "Series title, Part N of M", expandable to the full list.
-export function SeriesBox({ seriesSlug, posts, currentSlug }: SeriesBoxProps) {
+export function SeriesBox({ seriesSlug, posts, currentSlug, upcoming = [] }: SeriesBoxProps) {
   const info = series[seriesSlug];
   const position = posts.findIndex((post) => post.slug === currentSlug) + 1;
   if (!info || position === 0) return null;
@@ -49,6 +50,18 @@ export function SeriesBox({ seriesSlug, posts, currentSlug }: SeriesBoxProps) {
             </li>
           );
         })}
+        {upcoming.map((part, index) => (
+          <li
+            key={part.order}
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted/70"
+          >
+            <span className="tabular-nums">{posts.length + index + 1}.</span>
+            <span className="min-w-0 flex-1">{part.title}</span>
+            <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[0.6875rem] font-medium">
+              Coming soon
+            </span>
+          </li>
+        ))}
       </ol>
       <Link
         href={`/blog/series/${seriesSlug}`}

@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { getAllPosts } from "@/lib/blog";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { BootIn, BootItem } from "@/components/boot-in";
 import { RecentPosts } from "@/components/blog/recent-posts";
-import { RequestedPath } from "@/components/requested-path";
+import { NotFoundTerminal } from "@/components/not-found-terminal";
 
 export const metadata: Metadata = {
   title: "Page not found",
@@ -15,29 +16,23 @@ export default function NotFound() {
   const posts = getAllPosts().slice(0, 3);
 
   return (
-    <Section
+    <PageTransition>
+<Section
       id="not-found"
       labelledBy="not-found-heading"
       className="pt-32 sm:pt-40"
     >
       <BootIn className="mx-auto max-w-2xl text-center">
         <BootItem>
-          <p
-            aria-hidden="true"
-            className="bg-linear-to-b from-accent to-accent/0 bg-clip-text text-[clamp(6rem,3rem+20vw,13rem)] leading-none font-semibold tracking-tighter text-transparent select-none"
-          >
-            404
-          </p>
+          <NotFoundTerminal />
         </BootItem>
         <BootItem>
           <h1
             id="not-found-heading"
-            className="mt-2 text-display-sm font-semibold tracking-tight text-foreground"
+            className="mt-10 text-display-sm font-semibold tracking-tight text-foreground"
           >
             Page not found
           </h1>
-
-          <RequestedPath />
         </BootItem>
 
         <BootItem>
@@ -73,5 +68,6 @@ export default function NotFound() {
         </div>
       )}
     </Section>
+</PageTransition>
   );
 }

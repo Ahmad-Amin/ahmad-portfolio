@@ -2,11 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import { getAllPosts, getPostBySlug, getSeriesPosts, formatPostDate } from "@/lib/blog";
+import {
+  getAllPosts,
+  getPostBySlug,
+  getSeriesPlanned,
+  getSeriesPosts,
+  formatPostDate,
+} from "@/lib/blog";
 import { series } from "@/data/series";
 import { mdxComponents } from "@/components/mdx-components";
 import { mdxOptions } from "@/lib/mdx";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { BootIn, BootItem } from "@/components/boot-in";
 import { RecentPosts } from "@/components/blog/recent-posts";
 import { TableOfContents } from "@/components/blog/table-of-contents";
@@ -76,6 +83,7 @@ export default async function BlogPostPage({
     .slice(0, RECENT_POSTS_COUNT);
 
   const seriesPosts = post.series ? getSeriesPosts(post.series) : [];
+  const seriesUpcoming = post.series ? getSeriesPlanned(post.series) : [];
   const seriesIndex = seriesPosts.findIndex((p) => p.slug === post.slug);
   const seriesInfo = post.series ? series[post.series] : undefined;
 
@@ -117,7 +125,8 @@ export default async function BlogPostPage({
         // JSON.stringify output, not user input.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
+      <PageTransition>
+<Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
         <div className="mx-auto grid max-w-272 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
           <article className="min-w-0">
             <BootIn>
@@ -152,7 +161,12 @@ export default async function BlogPostPage({
             </BootIn>
 
             {post.series && seriesPosts.length > 1 && (
-              <SeriesBox seriesSlug={post.series} posts={seriesPosts} currentSlug={post.slug} />
+              <SeriesBox
+                seriesSlug={post.series}
+                posts={seriesPosts}
+                currentSlug={post.slug}
+                upcoming={seriesUpcoming}
+              />
             )}
 
             {showToc && <MobileTableOfContents headings={headings} />}
@@ -198,6 +212,7 @@ export default async function BlogPostPage({
           )}
         </div>
       </Section>
+</PageTransition>
     </>
   );
 }

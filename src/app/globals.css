@@ -103,3 +103,42 @@ html[data-intro="pending"] .intro-line {
     color: var(--shiki-dark);
   }
 }
+
+/* Route transitions (see components/page-transition.tsx). Only the old page
+   fades out; the header is named so it stays put instead of fading with it. */
+::view-transition-old(.page-out) {
+  animation: page-out 160ms ease-out both;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(site-header) {
+  display: none;
+}
+
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* Let clicks through to the live page while a transition runs. */
+::view-transition {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

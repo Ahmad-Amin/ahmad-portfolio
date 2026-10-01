@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Section } from "@/components/section";
+import { PageTransition } from "@/components/page-transition";
 import { BootIn, BootItem } from "@/components/boot-in";
 import { ConfirmSubscription } from "@/components/confirm-subscription";
 
@@ -16,7 +17,8 @@ export default async function ConfirmSubscriptionPage({
   const value = typeof token === "string" ? token : "";
 
   return (
-    <Section
+    <PageTransition>
+<Section
       id="confirm"
       labelledBy="confirm-heading"
       className="pt-32 sm:pt-40"
@@ -52,5 +54,6 @@ export default async function ConfirmSubscriptionPage({
         )}
       </div>
     </Section>
+</PageTransition>
   );
 }

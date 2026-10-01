@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
-import { series, type SeriesInfo } from "@/data/series";
+import { series, type PlannedPart, type SeriesInfo } from "@/data/series";
 
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 
@@ -108,6 +108,8 @@ export function formatPostDate(date: string): string {
 export interface SeriesWithPosts extends SeriesInfo {
   slug: string;
   posts: PostMeta[];
+  // Parts still to be written, in reading order. Never overlaps `posts`.
+  upcoming: PlannedPart[];
 }
 
 // Posts of one series in reading order (by `seriesOrder`, not by date).
@@ -127,9 +129,33 @@ export function getSeriesPosts(seriesSlug: string): PostMeta[] {
   return posts;
 }
 
+// Planned parts for a series, in reading order. Throws if one would sit before
+// (or collide with) a part that's already published, since that means the
+// entry should have been deleted when the post was written.
+export function getSeriesPlanned(seriesSlug: string): PlannedPart[] {
+  const planned = [...(series[seriesSlug]?.planned ?? [])].sort((a, b) => a.order - b.order);
+  const lastPublished = Math.max(
+    0,
+    ...getSeriesPosts(seriesSlug).map((post) => post.seriesOrder ?? 0),
+  );
+  for (const part of planned) {
+    if (part.order <= lastPublished) {
+      throw new Error(
+        `Series "${seriesSlug}" has a planned part "${part.title}" with order ${part.order}, but part ${lastPublished} is already published. Remove it from src/data/series.ts.`,
+      );
+    }
+  }
+  return planned;
+}
+
 // Only series that have at least one post, so empty entries never get a page.
 export function getAllSeries(): SeriesWithPosts[] {
   return Object.entries(series)
-    .map(([slug, info]) => ({ slug, ...info, posts: getSeriesPosts(slug) }))
+    .map(([slug, info]) => ({
+      slug,
+      ...info,
+      posts: getSeriesPosts(slug),
+      upcoming: getSeriesPlanned(slug),
+    }))
     .filter((entry) => entry.posts.length > 0);
 }
