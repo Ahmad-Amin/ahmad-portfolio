@@ -6,6 +6,7 @@ export type AnalyticsEvent =
   | "email_click"
   | "hero_cta_click"
   | "chat_open"
+  | "command_palette_open"
   | "newsletter_signup"
   | "testimonial_linkedin_click";
 

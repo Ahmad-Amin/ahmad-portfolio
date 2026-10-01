@@ -8,6 +8,8 @@ import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { ChatWidget } from "@/components/chat-widget";
 import { IntroOverlay } from "@/components/intro-overlay";
+import { CommandPalette } from "@/components/command-palette";
+import { getAllPosts, getAllSeries } from "@/lib/blog";
 import { profile } from "@/data/profile";
 import { feedPath, siteUrl } from "@/lib/site";
 import { introScript } from "@/lib/intro";
@@ -58,6 +60,15 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  // Only what the palette searches on, so the full post bodies never reach the client.
+  const palettePosts = getAllPosts().map(({ slug, title, tags, series }) => ({
+    slug,
+    title,
+    tags,
+    series,
+  }));
+  const paletteSeries = getAllSeries().map(({ slug, title }) => ({ slug, title }));
+
   return (
     <html lang="en" suppressHydrationWarning className="motion-safe:scroll-smooth">
       <head>
@@ -88,6 +99,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </main>
             <Footer />
             <ChatWidget />
+            <CommandPalette posts={palettePosts} seriesList={paletteSeries} />
           </MotionConfig>
         </ThemeProvider>
         <Analytics />

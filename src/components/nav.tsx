@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 import { motion } from "motion/react";
 import clsx from "clsx";
 import { navLinks, type NavLink } from "@/data/nav-links";
@@ -11,6 +11,7 @@ import { profile } from "@/data/profile";
 import { useActiveSection } from "@/hooks/use-active-section";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandWordmark } from "@/components/brand-wordmark";
+import { OPEN_PALETTE_EVENT } from "@/lib/command-palette";
 
 const SCROLL_THRESHOLD = 24;
 
@@ -118,6 +119,14 @@ export function Nav() {
           </nav>
 
           <div className="flex items-center gap-1 pl-1">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
+              aria-label="Search (Command or Control K)"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-background/60 hover:text-foreground"
+            >
+              <Search className="size-4" />
+            </button>
             <ThemeToggle />
             <button
               type="button"
