@@ -34,7 +34,9 @@ shallow tree is what makes the rest of this work.
 
 Every page in the index holds many entries. For a simple integer key, an index
 entry plus its bookkeeping is on the order of 20 bytes, so a page holds a few
-hundred of them. Call it a fanout of roughly 300.
+hundred of them. The real number depends on key width, alignment, fill factor
+and whether it's an internal or leaf page, so treat it as an illustration, not
+a Postgres constant. For intuition, call it a fanout of roughly 300.
 
 That means:
 
@@ -43,9 +45,12 @@ That means:
 - Three levels reach roughly 27 million entries.
 - Four levels reach into the billions.
 
-The cost of a lookup is the number of levels, because you read one page per
-level on the way down. So finding one row among tens of millions costs about
-three or four page reads, and that is the whole reason an index exists.
+The cost of a lookup is the number of levels, because the traversal touches
+about one index page per level on the way down. So finding one row among tens
+of millions of entries means visiting only three or four index pages, and that
+is the whole reason an index exists. Those visits aren't necessarily physical
+disk reads: Postgres has its own buffer cache, and the operating system has
+another one underneath it.
 
 ```
 Level 0 (root)       1 page      ── compare, pick one child
@@ -57,8 +62,8 @@ Inside each page, the entries are sorted, so choosing the right child is a
 binary search over a few hundred keys already in memory. The expensive part is
 never the comparing. It's getting the page into memory, and the top levels of a
 busy index are read so often that they basically live in the buffer cache
-permanently. In practice a lookup's real disk reads are often just the leaf and
-the heap page it points to.
+permanently. In practice the pages a lookup actually has to fetch from disk are
+often just the leaf and the heap page it points to.
 
 You can check the depth of a real index yourself, no guessing needed:
 
@@ -70,7 +75,7 @@ FROM pgstatindex('orders_pkey');
 ```
 
 `tree_level` is the number of levels above the leaves, so a value of `2` means
-a lookup reads three index pages. It's usually a smaller number than people
+a lookup visits three index pages. It's usually a smaller number than people
 expect.
 
 ### Ranges come almost for free
@@ -122,20 +127,23 @@ UUIDs exist for exactly this reason. PostgreSQL 18 ships `uuidv7()` built in.
 
 ### Updates and deletes
 
-An `UPDATE` in Postgres doesn't change a row in place. It writes a **new
-version** of the row. If the new version has to be findable, the indexes need
-entries pointing at it, so updating even one column can mean writing a new
-entry into every index on the table.
+An `UPDATE` in Postgres doesn't normally change a row in place. MVCC writes a
+**new version** of the row. Without an optimization, that new version needs
+its own entries in the indexes, so even an update to a column that isn't
+indexed at all can mean index maintenance on every index of the table.
 
-There's an important exception. If the update doesn't change any indexed column
-and the new row version fits on the same heap page, Postgres can do a **HOT
-update** (heap-only tuple) and skip touching the indexes entirely. That makes
+The optimization is the **HOT update** (heap-only tuple). If the update doesn't
+modify any column referenced by an index (summarizing indexes like BRIN are
+exempt) and there's enough free space on the same heap page for the new
+version, Postgres skips the new index entries entirely. That makes
 the set of columns you index a direct input to your write performance: indexing
 a frequently updated column, like `last_seen_at` or a `status` that flips all
 the time, turns cheap updates into expensive ones.
 
-A `DELETE` doesn't remove index entries immediately either. They stay until
-`VACUUM` cleans them up. And a leaf page is only recycled once it's completely
+A `DELETE` doesn't synchronously remove its index entries either. Dead index
+tuples are cleaned up later, primarily by `VACUUM`, though the B-tree code can
+also delete some of them opportunistically when a leaf page is about to split,
+to avoid the split. `VACUUM` is still the guaranteed cleanup. And a leaf page is only recycled once it's completely
 empty, so a table where you delete scattered rows can leave an index full of
 half-empty pages. That's **index bloat**, and it's why an index can be much
 bigger than the data in it justifies. You can see the effect with
@@ -155,9 +163,11 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 ```
 
 Run that on a table that's been live for a while and the zero-scan indexes are
-candidates to drop. Check that stats weren't recently reset before you trust it,
-and keep indexes that back a unique or primary key constraint regardless of
-scans, since they do a job beyond serving queries.
+candidates for investigation, not automatic drops. Check that stats weren't
+recently reset before you trust it. Keep indexes that back a unique or primary
+key constraint regardless of scans, since they do a job beyond serving queries,
+and be careful with indexes used rarely but critically, like a monthly report
+or an incident-time query.
 
 ## Composite indexes are one sorted list
 
@@ -190,15 +200,21 @@ that block. Both conditions are used to narrow the scan.
 '2026-09-07'` alone has no starting point, because those dates are scattered
 through the whole list, in chunks, one per customer. This is the case post 2
 described. A caveat that's new: PostgreSQL 18 added skip scan, which can let a
-multicolumn index serve a query that omits a leading column, but only when that
-column has few distinct values. It's an optimization for specific shapes, not a
-reason to stop thinking about column order.
+multicolumn index serve a query that omits a leading column. It works by
+repeating the search once per distinct value of that column, so it's mostly
+useful when that column has relatively few distinct values, and the planner
+picks it by cost. It's an optimization for specific shapes, not a reason to
+stop thinking about column order.
 
-**A range stops the narrowing.** Once a column has an inequality
-(`created_at > ...`), columns after it can no longer narrow the scan. Within
-that range they're sorted by the previous column, not by themselves. This is
-the reason for the usual guidance: **equality columns first, then the range or
-sort column last.**
+**A range usually ends the contiguous narrowing.** Equality conditions on the
+leading columns, plus an inequality on the first column that has no equality,
+decide which contiguous stretch of the index gets scanned. Conditions on columns
+after that are still checked inside the index, so they save visits to the table,
+but they don't necessarily shrink the stretch being read, because within it the
+later columns aren't sorted on their own. Skip scan can sometimes change this by
+repeating searches, but whether it's worth it is a cost decision. That's why
+**equality columns first, then the range or sort column last** is a good
+starting heuristic, though not a universal law.
 
 ### The sort bonus
 
@@ -232,25 +248,28 @@ A short procedure that works well:
    which lowers the fanout from earlier, which makes the tree taller and the
    index bigger.
 
-One more consequence of the sorted-list model: an index on `(a, b)` already
-serves every query an index on `(a)` alone would. Keeping both is usually
-redundant weight on every write.
+One more consequence of the sorted-list model: an index on `(a, b)` can
+generally support the same searches on `a` that an index on `(a)` alone can.
+It's larger, though, so a workload can occasionally justify keeping both. Most
+of the time it's redundant weight on every write.
 
 ## A short checklist
 
 - A B-tree is shallow because each node is a whole page with hundreds of
-  entries, so lookups cost one page read per level, usually three or four.
+  entries, so a lookup visits one index page per level, usually three or four,
+  and many of those are already cached.
 - Ranges and `ORDER BY` are cheap because the leaves are sorted and linked.
 - Every index costs a tree insert per row plus WAL, and can cause page splits.
 - Random keys split pages everywhere; sequential or time-ordered keys keep
   inserts on the right edge.
 - Indexing a frequently updated column defeats HOT updates.
-- Deletes leave work for `VACUUM`, and half-empty pages don't merge, so indexes
-  can bloat.
+- Deletes leave dead index entries behind, cleaned up mainly by `VACUUM`, and
+  half-empty pages don't merge, so indexes can bloat.
 - Think of `(a, b)` as one sorted list: equality columns first, range or sort
-  column last, and don't keep both `(a)` and `(a, b)` without a reason.
-- Use `pg_stat_user_indexes` to find indexes that cost you writes and never
-  serve a read.
+  column last as a starting heuristic, and don't keep both `(a)` and `(a, b)`
+  without a reason.
+- Use `pg_stat_user_indexes` to find indexes that may be costing you writes
+  without serving reads, then investigate before dropping anything.
 
 An index isn't a free speedup you sprinkle on. It's a data structure with a
 price on every write, and it pays off exactly when its sort order matches the
