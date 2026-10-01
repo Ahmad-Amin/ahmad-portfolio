@@ -1,0 +1,258 @@
+---
+title: "B-tree indexes explained from first principles"
+date: "2026-10-01"
+excerpt: "Why an index lookup touches only a handful of pages, what every extra index quietly costs on writes, and how to think about composite indexes as one sorted list instead of a bag of columns."
+tags: ["postgresql", "databases", "performance"]
+---
+
+In the last two posts I covered [how PostgreSQL executes a query](/blog/how-postgresql-executes-a-query)
+and [how it finds your data](/blog/how-postgresql-finds-your-data), and in the
+second one I described what a B-tree index looks like and then moved on to scan
+types. This post goes back and starts from the bottom. Not "what does the
+structure look like", but "why does it have that shape, what does it cost me,
+and how do I decide which columns go in it".
+
+If you only keep one idea from this post, keep this one: **a B-tree is a sorted
+list that has been engineered so you can find a spot in it, and change it, while
+touching very few pages.** Everything else follows from that.
+
+## Start with the problem
+
+Imagine the simplest possible index: a sorted array of `(key, row address)`
+pairs. Finding a key is a binary search, which is fast in memory. But a
+database doesn't live in memory. It lives on disk, and it reads in 8&nbsp;KB
+pages. A binary search over a million-entry array on disk touches around twenty
+different places, and each one is potentially a separate page read. Worse, the
+moment you insert a key in the middle, you'd have to shift everything after it.
+
+A B-tree fixes both problems with one trick: **make each node as wide as one
+page**. Instead of choosing between two children at each step, you choose
+between hundreds. That single decision is what keeps the tree shallow, and a
+shallow tree is what makes the rest of this work.
+
+## Why a lookup touches so few pages
+
+Every page in the index holds many entries. For a simple integer key, an index
+entry plus its bookkeeping is on the order of 20 bytes, so a page holds a few
+hundred of them. Call it a fanout of roughly 300.
+
+That means:
+
+- One level can point to about 300 pages.
+- Two levels reach about 90,000 pages worth of entries.
+- Three levels reach roughly 27 million entries.
+- Four levels reach into the billions.
+
+The cost of a lookup is the number of levels, because you read one page per
+level on the way down. So finding one row among tens of millions costs about
+three or four page reads, and that is the whole reason an index exists.
+
+```
+Level 0 (root)       1 page      ── compare, pick one child
+Level 1              ~300 pages  ── compare, pick one child
+Level 2 (leaf)       ~90,000     ── binary search the page, find the key
+```
+
+Inside each page, the entries are sorted, so choosing the right child is a
+binary search over a few hundred keys already in memory. The expensive part is
+never the comparing. It's getting the page into memory, and the top levels of a
+busy index are read so often that they basically live in the buffer cache
+permanently. In practice a lookup's real disk reads are often just the leaf and
+the heap page it points to.
+
+You can check the depth of a real index yourself, no guessing needed:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pgstattuple;
+
+SELECT tree_level, leaf_pages, avg_leaf_density
+FROM pgstatindex('orders_pkey');
+```
+
+`tree_level` is the number of levels above the leaves, so a value of `2` means
+a lookup reads three index pages. It's usually a smaller number than people
+expect.
+
+### Ranges come almost for free
+
+Because the leaves are sorted and linked to their neighbors, a range query does
+one descent to find where the range starts, then walks sideways. `WHERE
+created_at >= '2026-09-01'` costs one lookup plus however many rows you
+actually read. The same property is why an index can return rows already
+sorted, which matters again in the composite section below.
+
+## What writes cost
+
+Reads are the happy path. Here is the part that gets left out of most
+"add an index" advice: **an index is a second copy of part of your data that
+Postgres has to keep in sync, in sorted order, on every write.**
+
+### Inserts
+
+Inserting a row means writing it into the table, and then, for every index on
+that table, descending that index to find the correct leaf and inserting an
+entry there. A table with five indexes does one heap write and five separate
+tree descents and insertions per row, and each one is also recorded in the
+write-ahead log.
+
+This is why bulk loads are often faster when you create the indexes after the
+data is in, instead of maintaining them row by row.
+
+### Page splits
+
+A leaf page has a fixed size. When an insert lands on a page that's full,
+Postgres **splits** it: allocate a new page, move about half the entries over,
+and add a new separator key to the parent. If the parent is full too, it splits
+as well, and in the worst case that cascades all the way to the root. When the
+root splits, the tree gets one level taller. That's the only way a B-tree grows
+in height, and it's why the tree stays balanced without anyone rebalancing it.
+
+Splits are where your key choice starts to matter:
+
+- **Sequential keys** (a `bigserial` id, a timestamp) always insert at the
+  right edge of the tree. The same few pages stay hot in cache, and when the
+  rightmost page fills, Postgres leaves the left page nearly full instead of
+  half empty, so the index stays compact.
+- **Random keys** (a random UUID) insert all over the tree. Every insert might
+  need a page that isn't cached, splits happen everywhere, pages end up
+  half-full, and the index grows larger than the same data would need.
+
+If you want UUIDs but also want that right-edge insert pattern, time-ordered
+UUIDs exist for exactly this reason. PostgreSQL 18 ships `uuidv7()` built in.
+
+### Updates and deletes
+
+An `UPDATE` in Postgres doesn't change a row in place. It writes a **new
+version** of the row. If the new version has to be findable, the indexes need
+entries pointing at it, so updating even one column can mean writing a new
+entry into every index on the table.
+
+There's an important exception. If the update doesn't change any indexed column
+and the new row version fits on the same heap page, Postgres can do a **HOT
+update** (heap-only tuple) and skip touching the indexes entirely. That makes
+the set of columns you index a direct input to your write performance: indexing
+a frequently updated column, like `last_seen_at` or a `status` that flips all
+the time, turns cheap updates into expensive ones.
+
+A `DELETE` doesn't remove index entries immediately either. They stay until
+`VACUUM` cleans them up. And a leaf page is only recycled once it's completely
+empty, so a table where you delete scattered rows can leave an index full of
+half-empty pages. That's **index bloat**, and it's why an index can be much
+bigger than the data in it justifies. You can see the effect with
+`pg_relation_size` and `avg_leaf_density` from earlier.
+
+### The practical rule
+
+Every index is a trade: faster reads for the queries it serves, slower writes
+for every statement that touches the table, plus disk space and cache pressure.
+An index nobody queries is pure cost. Postgres tracks usage for you:
+
+```sql
+SELECT relname, indexrelname, idx_scan
+FROM pg_stat_user_indexes
+WHERE idx_scan = 0
+ORDER BY pg_relation_size(indexrelid) DESC;
+```
+
+Run that on a table that's been live for a while and the zero-scan indexes are
+candidates to drop. Check that stats weren't recently reset before you trust it,
+and keep indexes that back a unique or primary key constraint regardless of
+scans, since they do a job beyond serving queries.
+
+## Composite indexes are one sorted list
+
+The mental model that makes composite indexes click: an index on `(a, b)` is
+**not** two indexes. It's a single sorted list, ordered by `a`, and where `a`
+ties, ordered by `b`. Like a phone book sorted by last name, then first name.
+
+```sql
+CREATE INDEX ON orders (customer_id, created_at);
+```
+
+```
+(customer_id, created_at)
+
+(41, 2026-09-02)
+(41, 2026-09-18)
+(42, 2026-09-01)   ◀── all of customer 42 is contiguous
+(42, 2026-09-07)
+(42, 2026-09-30)
+(43, 2026-09-03)
+```
+
+Once you see it as that list, the rules stop being rules and become obvious:
+
+**Equality on the leading column is a jump.** `WHERE customer_id = 42` lands on
+a contiguous block. Add `created_at >= '2026-09-07'` and it's a range inside
+that block. Both conditions are used to narrow the scan.
+
+**Skipping the leading column breaks the model.** `WHERE created_at >=
+'2026-09-07'` alone has no starting point, because those dates are scattered
+through the whole list, in chunks, one per customer. This is the case post 2
+described. A caveat that's new: PostgreSQL 18 added skip scan, which can let a
+multicolumn index serve a query that omits a leading column, but only when that
+column has few distinct values. It's an optimization for specific shapes, not a
+reason to stop thinking about column order.
+
+**A range stops the narrowing.** Once a column has an inequality
+(`created_at > ...`), columns after it can no longer narrow the scan. Within
+that range they're sorted by the previous column, not by themselves. This is
+the reason for the usual guidance: **equality columns first, then the range or
+sort column last.**
+
+### The sort bonus
+
+The list is already sorted, which means an index can replace a sort step. This
+query:
+
+```sql
+SELECT id, total
+FROM orders
+WHERE customer_id = 42
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+with an index on `(customer_id, created_at)` doesn't need to find and sort all
+of customer 42's orders. It jumps to the end of that block and reads ten
+entries backward, then stops. That is the single biggest win composite indexes
+give you, and it's invisible if you only think of indexes as filters. With a
+plain index on `customer_id` alone, Postgres has to fetch every matching row and
+sort them just to give you ten.
+
+### Choosing the order
+
+A short procedure that works well:
+
+1. Put columns compared with `=` first.
+2. Put the column you range over or sort by last.
+3. Among the equality columns, lean toward the one every query uses first, so
+   more queries can share the index.
+4. Don't add a column "just in case". Each extra column makes entries wider,
+   which lowers the fanout from earlier, which makes the tree taller and the
+   index bigger.
+
+One more consequence of the sorted-list model: an index on `(a, b)` already
+serves every query an index on `(a)` alone would. Keeping both is usually
+redundant weight on every write.
+
+## A short checklist
+
+- A B-tree is shallow because each node is a whole page with hundreds of
+  entries, so lookups cost one page read per level, usually three or four.
+- Ranges and `ORDER BY` are cheap because the leaves are sorted and linked.
+- Every index costs a tree insert per row plus WAL, and can cause page splits.
+- Random keys split pages everywhere; sequential or time-ordered keys keep
+  inserts on the right edge.
+- Indexing a frequently updated column defeats HOT updates.
+- Deletes leave work for `VACUUM`, and half-empty pages don't merge, so indexes
+  can bloat.
+- Think of `(a, b)` as one sorted list: equality columns first, range or sort
+  column last, and don't keep both `(a)` and `(a, b)` without a reason.
+- Use `pg_stat_user_indexes` to find indexes that cost you writes and never
+  serve a read.
+
+An index isn't a free speedup you sprinkle on. It's a data structure with a
+price on every write, and it pays off exactly when its sort order matches the
+questions you actually ask. Knowing the structure is how you tell which ones
+those are.
