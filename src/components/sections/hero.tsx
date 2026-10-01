@@ -1,10 +1,12 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { motion } from "motion/react";
+import { useEffect } from "react";
+import { motion, useAnimationControls } from "motion/react";
 import { profile } from "@/data/profile";
 import { Section } from "@/components/section";
 import { TrackedLink } from "@/components/tracked-link";
+import { whenIntroDone } from "@/lib/intro";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -32,12 +34,17 @@ const pop = {
 };
 
 export function Hero() {
+  const controls = useAnimationControls();
+
+  // On a first visit the brand intro covers the page; hold the hero until it lifts.
+  useEffect(() => whenIntroDone(() => controls.start("show")), [controls]);
+
   return (
     <Section id="hero" labelledBy="hero-heading" className="pt-32 sm:pt-40">
       <motion.div
         variants={container}
         initial="hidden"
-        animate="show"
+        animate={controls}
         className="mx-auto max-w-3xl text-center"
       >
         <motion.h1

@@ -1,7 +1,10 @@
 import { profile } from "@/data/profile";
 
+export const ACCENT_GRADIENT =
+  "from-accent to-[color-mix(in_oklch,var(--accent),oklch(0.78_0.13_205)_50%)]";
+
 // "TechWithSwag" -> ["TechWith", "Swag"]: the last capitalised word gets the accent.
-function splitBrand(brand: string): [string, string] {
+export function splitBrand(brand: string): [string, string] {
   const match = brand.match(/^(.*?)([A-Z][a-z]*)$/);
   return match ? [match[1], match[2]] : [brand, ""];
 }
@@ -15,7 +18,7 @@ export function BrandWordmark() {
       <span className="text-foreground">{lead}</span>
       {accent && (
         <span className="relative">
-          <span className="bg-linear-to-r from-accent to-[color-mix(in_oklch,var(--accent),oklch(0.78_0.13_205)_50%)] bg-clip-text text-transparent">
+          <span className={`bg-linear-to-r ${ACCENT_GRADIENT} bg-clip-text text-transparent`}>
             {accent}
           </span>
           <span

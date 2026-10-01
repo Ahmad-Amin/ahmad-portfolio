@@ -7,8 +7,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { ChatWidget } from "@/components/chat-widget";
+import { IntroOverlay } from "@/components/intro-overlay";
 import { profile } from "@/data/profile";
 import { feedPath, siteUrl } from "@/lib/site";
+import { introScript } from "@/lib/intro";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,10 +60,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className="motion-safe:scroll-smooth">
+      <head>
+        {/* Decides before first paint whether the brand intro plays; see lib/intro.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: introScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-dvh flex-col antialiased`}
         suppressHydrationWarning
       >
+        <IntroOverlay />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-accent-foreground"

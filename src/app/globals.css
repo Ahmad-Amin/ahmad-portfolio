@@ -39,6 +39,50 @@
   --text-display-sm--line-height: 1.1;
 }
 
+/* Brand intro (see lib/intro.ts + components/intro-overlay.tsx). Hidden unless
+   <html data-intro="pending">. The base styles are the finished state, so when
+   the attribute flips to "done" the overlay fades out already fully drawn. */
+.intro-overlay {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
+}
+
+html[data-intro="pending"] .intro-overlay {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: none;
+}
+
+html[data-intro="pending"] .intro-lead {
+  animation: intro-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+html[data-intro="pending"] .intro-accent {
+  animation: intro-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+html[data-intro="pending"] .intro-line {
+  animation: intro-draw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes intro-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 @layer base {
   body {
     @apply bg-background text-foreground;
