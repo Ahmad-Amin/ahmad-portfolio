@@ -1,0 +1,155 @@
+---
+title: "Sunday Tech Talk #1: AI is moving from the chatbot into real engineering work"
+date: "2026-10-05"
+excerpt: "The first episode of a new weekly series: persistent AI agents, AI in cybersecurity, why CUDA may matter more than NVIDIA's chips, and AI helping design the chips that power AI."
+tags: ["sunday-tech-talk", "ai", "ai-agents"]
+series: "sunday-tech-talk"
+seriesOrder: 1
+---
+
+This week marks the first episode of **Sunday Tech Talk**, a new weekly series
+where I look at some of the most important developments in technology from the
+past week and explore why they actually matter.
+
+For the first episode, one theme ran through most of the stories: **AI is moving
+beyond answering questions and becoming involved in real engineering work.**
+
+Here are the stories I covered.
+
+## OpenAI Dots: AI agents that keep working
+
+One of the biggest developments this week was OpenAI's introduction of
+**Dots**, persistent AI agents designed to keep working on a task even when the
+user is no longer interacting with them.
+
+That is an important shift in how we think about AI. The traditional
+interaction has largely been:
+
+**Prompt → Response**
+
+Agents changed that into something closer to:
+
+**Goal → Reasoning → Tools → Actions → Result**
+
+Persistent agents take it a step further. They can maintain state, observe
+changes and keep working toward a goal over longer periods.
+
+From a software engineering perspective, that creates real challenges. Once an
+agent can operate for hours or days, you have to think about retries,
+idempotency, permissions, state management, observability, audit logs and human
+approval.
+
+The question is no longer only how intelligent an AI system is. It's also
+**how much authority we're comfortable giving it.**
+
+**Official announcement:** [Introducing dots (OpenAI)](https://openai.com/index/introducing-dots/)
+
+## Gemini 4 Argon and AI in cybersecurity
+
+Google also introduced **Gemini 4 Argon**, a frontier model aimed at complex
+workloads including software engineering and cybersecurity. It is rolling out
+first to vetted cybersecurity defenders rather than to everyone.
+
+The cybersecurity side is the interesting part. AI agents are increasingly able
+to analyze large codebases, discover vulnerabilities, reason across application
+components and potentially help generate fixes.
+
+But that raises a classic dual-use problem. A system that can find
+vulnerabilities for defenders may offer similar capabilities to attackers, and
+we could end up with AI operating on both sides:
+
+**AI finds vulnerabilities → AI attacks → AI detects → AI patches**
+
+Cybersecurity may become one of the most important, and most sensitive,
+applications of increasingly autonomous AI systems.
+
+**Official announcement:** [Gemini 4 Argon: our next era of frontier intelligence (Google)](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/)
+
+## NVIDIA's real moat might be CUDA
+
+Another development came from **DeepSeek and Huawei**. DeepSeek open-sourced
+six tools for Huawei's Ascend AI platform, built with Huawei's support,
+including a language called TileLang for writing the compute kernels behind AI
+models.
+
+This matters because NVIDIA's dominance in AI isn't simply about building
+powerful GPUs. A huge part of its advantage is **CUDA**. Over many years CUDA
+has accumulated libraries, tooling, framework integrations, optimized kernels,
+documentation and, perhaps most importantly, developer knowledge.
+
+Even if another company builds competitive AI hardware, moving workloads away
+from NVIDIA isn't as simple as swapping one GPU for another. Companies may
+already have enormous amounts of software and infrastructure built around CUDA.
+
+It's similar to cloud computing. Moving from AWS to another provider isn't just
+about finding cheaper servers when your architecture already depends on S3,
+Lambda, IAM, RDS, SQS, CloudWatch and many other services. The ecosystem itself
+becomes the moat.
+
+So Huawei and other competitors aren't only competing with NVIDIA's chips.
+They're competing with the entire developer ecosystem around them.
+
+**Source code:** [TileLang for Ascend](https://github.com/tile-ai/tilelang-ascend) and [DeepSeek's TileKernels](https://github.com/deepseek-ai/TileKernels). DeepSeek announced the release on its WeChat account, so there is no announcement page to link.
+
+## OpenAI × Synopsys: AI helping design the chips that power AI
+
+Finally, OpenAI and Synopsys announced a partnership focused on applying
+frontier AI to semiconductor design workflows.
+
+Chip design is an extraordinarily complicated process involving architecture,
+hardware descriptions, logic synthesis, physical design, placement and routing,
+simulation and extensive verification.
+
+AI doesn't need to design a whole processor from a single prompt to have a huge
+impact. It can help engineers explore alternatives, analyze designs, spot
+potential issues, automate repetitive tasks and navigate extremely large design
+spaces.
+
+The pattern I find most interesting here is:
+
+**AI proposes → deterministic systems verify**
+
+We already see something similar in software development:
+
+**AI generates code → compiler → tests → static analysis → human review**
+
+Semiconductor engineering could follow the same shape, with AI assisting
+engineers while established electronic design automation (EDA) and verification
+tools decide whether a proposed
+design actually meets strict engineering constraints.
+
+And that creates an interesting feedback loop:
+
+**Better AI → Better chip design → Better chips → More compute → Better AI**
+
+**Official announcement:** [OpenAI and Synopsys Announce GPT-Synopsys (Synopsys)](https://news.synopsys.com/2026-09-30-OpenAI-and-Synopsys-Announce-GPT-Synopsys-Frontier-Intelligence-to-Revolutionize-Chip-Design)
+
+## The bigger picture
+
+Across these stories the common theme is clear: AI is gradually moving beyond
+the chatbot.
+
+It's becoming an **agent that can keep working**, a cybersecurity tool that can
+reason about vulnerabilities, part of the competition around AI hardware, and
+potentially an engineering assistant helping design future processors.
+
+So the interesting question is becoming less:
+
+**"What can an AI chatbot answer?"**
+
+and more:
+
+**"What parts of real engineering work can AI participate in?"**
+
+That's something we'll keep following as these systems become more capable.
+
+## Watch the episode
+
+I go deeper into each of these stories, the engineering behind them, and what I
+think they could mean for developers and the wider technology industry.
+
+**YouTube:** [Watch Sunday Tech Talk #1](https://www.youtube.com/watch?v=hZEoItDWxCI)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
