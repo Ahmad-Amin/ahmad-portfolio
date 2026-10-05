@@ -35,15 +35,18 @@ the same journey in words, with the things worth knowing at each stop.
 ## A backend process picks up your query
 
 Postgres uses a process per connection. When your client connects, the main
-process (the postmaster) authenticates it and starts a dedicated backend process
-for it. Every query on that connection runs inside that one process.
+process (the postmaster) accepts the connection and starts a dedicated backend
+process. That backend handles authentication and then serves every query on that
+connection.
 
 That makes a connection fairly expensive, which is why poolers such as PgBouncer
 exist and why opening a fresh connection for every web request is slow.
 
 Your SQL travels to the backend as a message in Postgres's wire protocol. The
-simple form just carries the text. Prepared statements use an extended form that
-lets Postgres keep the parsing work, and sometimes the plan, for next time.
+simple form just carries the text. The extended form supports prepared
+statements: Postgres parses, analyzes and rewrites the statement once, and
+planning happens each time it is executed, where it is either redone for the
+parameters you pass or reuses a generic plan.
 
 ## The parser reads the grammar
 
@@ -65,9 +68,11 @@ filters you'll be held to. None of this has touched a single row of data.
 
 ## The planner picks a route
 
-Postgres is cost-based. The planner lists the ways it could fetch the rows
-(sequential scan, index scan, bitmap scan, and for joins, different orders and
-algorithms), estimates the cost of each, and keeps the cheapest.
+Postgres is cost-based. The planner considers alternative ways to run the query
+(sequential scans, index scans, bitmap scans, and for joins, different orders and
+algorithms), estimates the cost of each, and chooses the cheapest plan it finds.
+With many joins it switches to heuristics instead of checking every
+possibility.
 
 The estimates come from statistics gathered by `ANALYZE`, which autovacuum runs
 for you: how many rows a table has, how many distinct values a column holds, and
@@ -105,13 +110,17 @@ Finding a row isn't enough. Postgres also has to decide whether *you* may see
 that version of it.
 
 Every row version records the transaction that created it and, if it was updated
-or deleted, the one that removed it. When your query starts, it takes a snapshot
-of which transactions count as finished. For each row version the scan finds, the
-executor checks it against that snapshot. Visible versions are returned, and the
+or deleted, the one that removed it. Before running your statement, Postgres
+determines the snapshot that applies to it: which transactions count as
+finished. Under the default READ COMMITTED isolation level each statement gets a
+fresh snapshot, while under REPEATABLE READ a transaction keeps using one. For
+each row version the scan finds, the executor checks it against that snapshot. Visible versions are returned, and the
 rest are skipped.
 
-This is MVCC, and it's why a `SELECT` doesn't block an `UPDATE` and vice versa.
-It also means old row versions pile up until `VACUUM` cleans them out, which is
+This is MVCC, and it's why ordinary `SELECT`s generally don't block row
+updates, and row updates generally don't block ordinary `SELECT`s. Explicit
+locking can still get in the way: `SELECT ... FOR UPDATE`, explicit table locks
+and DDL such as `ALTER TABLE` can block other queries. MVCC also means old row versions pile up until `VACUUM` cleans them out, which is
 one reason a table with heavy update churn gets slower to scan.
 
 ## The rows stream back to you
@@ -161,12 +170,13 @@ One warning: `EXPLAIN ANALYZE` really runs the statement. For an `UPDATE` or
 - A typo fails instantly, before any data is read, because the analyzer rejects
   it first.
 - Opening a new connection is costly, because each one is a whole process.
-- A query that suddenly slows down is often a planner problem. Check the plan and
-  the statistics before blaming the server.
-- The same query is usually faster the second time, because its pages are
-  already in memory.
-- Readers and writers don't block each other, because of row versions and
-  snapshots.
+- A query that suddenly slows down may be running a different or poorly
+  estimated plan, so checking the execution plan and the statistics is a good
+  first step.
+- The same query can be faster on later runs, because the pages it needs may
+  already be in Postgres's shared buffers or the operating system's cache.
+- Ordinary reads and writes generally don't block each other, because of row
+  versions and snapshots.
 - A huge result set can exhaust your application's memory even when the database
   is fine, because the client library may buffer all of it.
 

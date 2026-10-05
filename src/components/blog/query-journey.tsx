@@ -35,7 +35,7 @@ customer_id = 42  -> bigint = bigint, valid`,
     name: "Planner",
     flow: "query tree → plan tree",
     description:
-      "The planner uses table statistics to estimate how many rows match, prices the possible ways to fetch them, and keeps the cheapest.",
+      "The planner uses table statistics to estimate how many rows match, prices the possible ways to fetch them, and picks the cheapest it finds.",
     snippet: `Seq Scan on orders                    cost 0.00..18334.00   rejected
 Index Scan using orders_customer_id_idx  cost 0.43..12.50   chosen`,
   },
