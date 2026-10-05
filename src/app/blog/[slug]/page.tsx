@@ -86,6 +86,8 @@ export default async function BlogPostPage({
   const seriesUpcoming = post.series ? getSeriesPlanned(post.series) : [];
   const seriesIndex = seriesPosts.findIndex((p) => p.slug === post.slug);
   const seriesInfo = post.series ? series[post.series] : undefined;
+  const seriesPrevious = seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : null;
+  const seriesNext = seriesIndex >= 0 && seriesIndex < seriesPosts.length - 1 ? seriesPosts[seriesIndex + 1] : null;
 
   const headings = extractHeadings(post.content);
   const showToc = headings.length >= MIN_TOC_HEADINGS;
@@ -185,14 +187,21 @@ export default async function BlogPostPage({
                 title={post.title}
                 url={`${siteUrl}/blog/${post.slug}`}
               />
-              {seriesInfo && seriesPosts.length > 1 && (
+              {seriesInfo && post.series && seriesPosts.length > 1 && (
                 <SeriesNav
+                  seriesSlug={post.series}
                   seriesTitle={seriesInfo.title}
-                  previous={seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : null}
-                  next={seriesIndex < seriesPosts.length - 1 ? seriesPosts[seriesIndex + 1] : null}
+                  position={seriesIndex + 1}
+                  total={seriesPosts.length}
+                  previous={seriesPrevious}
+                  next={seriesNext}
                 />
               )}
-              <PostNav newer={newer} older={older} />
+              {/* A post already shown in the series block isn't repeated below it. */}
+              <PostNav
+                newer={newer && newer.slug !== seriesPrevious?.slug && newer.slug !== seriesNext?.slug ? newer : null}
+                older={older && older.slug !== seriesPrevious?.slug && older.slug !== seriesNext?.slug ? older : null}
+              />
             </div>
           </article>
 

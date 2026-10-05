@@ -1,0 +1,174 @@
+---
+title: "What happens inside PostgreSQL when you run a SELECT"
+date: "2026-10-05"
+excerpt: "Follow one query from your keyboard to the disk and back, with an animation you can click through, and the one command that shows you every stage."
+tags: ["postgresql", "databases", "performance"]
+series: "postgresql-internals"
+seriesOrder: 4
+---
+
+You type a `SELECT`, hit enter, and a few milliseconds later rows appear. It
+feels like a single step, but a lot happens in between, and almost every slow
+query I've had to debug turned out to be slow at one specific stage of that
+journey.
+
+The first three posts in this series covered the big pieces in depth:
+[how PostgreSQL executes a query](/blog/how-postgresql-executes-a-query),
+[how it finds your data](/blog/how-postgresql-finds-your-data), and
+[how B-tree indexes work](/blog/btree-indexes-explained-from-first-principles).
+This post is the map. We'll follow one query from start to finish, and you can
+click through it below.
+
+## The query
+
+An ordinary lookup, on a table with an index on `customer_id`:
+
+```sql
+SELECT id, total FROM orders WHERE customer_id = 42;
+```
+
+<QueryJourney />
+
+Use the buttons, or click any stage, to move through it. The rest of this post is
+the same journey in words, with the things worth knowing at each stop.
+
+## A backend process picks up your query
+
+Postgres uses a process per connection. When your client connects, the main
+process (the postmaster) authenticates it and starts a dedicated backend process
+for it. Every query on that connection runs inside that one process.
+
+That makes a connection fairly expensive, which is why poolers such as PgBouncer
+exist and why opening a fresh connection for every web request is slow.
+
+Your SQL travels to the backend as a message in Postgres's wire protocol. The
+simple form just carries the text. Prepared statements use an extended form that
+lets Postgres keep the parsing work, and sometimes the plan, for next time.
+
+## The parser reads the grammar
+
+The parser's only job is grammar. It turns the text into a parse tree, and it
+has no idea yet whether `orders` exists. `SELEC id FROM orders` fails here with
+a syntax error. A misspelled column name does not, because nothing has checked
+the names yet.
+
+## The analyzer and rewriter check what you meant
+
+Next, parse analysis looks up every name in the system catalogs: `pg_class` for
+tables, `pg_attribute` for columns. It resolves types so that
+`customer_id = 42` compares a number to a number, and it builds the query tree.
+This is where `column "emial" does not exist` comes from.
+
+Then the rewriter expands views into the queries underneath them and applies
+row-level security policies, so the planner works with the real tables and the
+filters you'll be held to. None of this has touched a single row of data.
+
+## The planner picks a route
+
+Postgres is cost-based. The planner lists the ways it could fetch the rows
+(sequential scan, index scan, bitmap scan, and for joins, different orders and
+algorithms), estimates the cost of each, and keeps the cheapest.
+
+The estimates come from statistics gathered by `ANALYZE`, which autovacuum runs
+for you: how many rows a table has, how many distinct values a column holds, and
+how those values are distributed. If customer 42 has three orders in a table of
+ten million rows, the index scan wins easily. If a condition matched a third of
+the table, a sequential scan could win instead.
+
+The plan is only as good as those estimates. Stale or missing statistics are one
+of the classic reasons a query that was fast yesterday is slow today.
+
+## The executor pulls rows
+
+The plan is a tree of nodes. The executor is demand driven: it asks the top node
+for a row, that node asks the one below it, and so on down to a scan node that
+actually reads the table. Each row then travels back up, one at a time.
+
+That is why `LIMIT 10` can stop early without producing the rest of the rows.
+Some nodes can't work that way, though. A sort or a hash build has to consume
+all of its input before it can hand anything upward.
+
+## The buffer manager finds the pages
+
+A scan node doesn't read the disk directly. It asks the buffer manager for a
+page, which is 8 KB by default. If the page is already in `shared_buffers`,
+that's a hit and costs a memory access. If not, Postgres reads it from the
+operating system, which may serve it from its own page cache or go to the disk,
+and keeps a copy in shared buffers.
+
+So "read" in Postgres terms often means "not in Postgres's cache", not "a
+physical disk read".
+
+## Which rows are you allowed to see?
+
+Finding a row isn't enough. Postgres also has to decide whether *you* may see
+that version of it.
+
+Every row version records the transaction that created it and, if it was updated
+or deleted, the one that removed it. When your query starts, it takes a snapshot
+of which transactions count as finished. For each row version the scan finds, the
+executor checks it against that snapshot. Visible versions are returned, and the
+rest are skipped.
+
+This is MVCC, and it's why a `SELECT` doesn't block an `UPDATE` and vice versa.
+It also means old row versions pile up until `VACUUM` cleans them out, which is
+one reason a table with heavy update churn gets slower to scan.
+
+## The rows stream back to you
+
+Results go back as a few kinds of message: a description of the columns, one
+`DataRow` per row, a `CommandComplete` such as `SELECT 3`, and finally
+`ReadyForQuery`. Postgres sends rows as they are produced.
+
+Your client library may not hand them over that way, though. Many drivers,
+including libpq by default, collect the entire result in memory before giving it
+to your code. For very large results, use a cursor or your driver's streaming or
+single-row mode, so you process rows as they arrive instead of holding them all.
+
+## See it yourself with EXPLAIN
+
+You can watch most of this happen with one command:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, total FROM orders WHERE customer_id = 42;
+```
+
+```
+Index Scan using orders_customer_id_idx on orders  (cost=0.43..12.50 rows=3 width=16) (actual time=0.031..0.037 rows=3 loops=1)
+  Index Cond: (customer_id = 42)
+  Buffers: shared hit=4 read=1
+Planning Time: 0.118 ms
+Execution Time: 0.061 ms
+```
+
+This is example output, so your numbers will differ. Here's how it maps to the
+journey:
+
+- The tree itself is what the **planner** chose. Compare `rows=3` in the
+  estimate with the actual rows. A big gap points to a statistics problem.
+- `Buffers: shared hit=4 read=1` is the **buffer manager**: four pages came
+  from memory and one had to be read in.
+- `Execution Time` is the **executor** doing its work.
+- `Planning Time` covers planning only. According to the PostgreSQL docs it does
+  not include parsing or rewriting.
+
+One warning: `EXPLAIN ANALYZE` really runs the statement. For an `UPDATE` or
+`DELETE`, wrap it in a transaction and roll it back.
+
+## What this explains
+
+- A typo fails instantly, before any data is read, because the analyzer rejects
+  it first.
+- Opening a new connection is costly, because each one is a whole process.
+- A query that suddenly slows down is often a planner problem. Check the plan and
+  the statistics before blaming the server.
+- The same query is usually faster the second time, because its pages are
+  already in memory.
+- Readers and writers don't block each other, because of row versions and
+  snapshots.
+- A huge result set can exhaust your application's memory even when the database
+  is fine, because the client library may buffer all of it.
+
+That's the whole journey. The earlier posts go deeper on planning, scans and
+indexes. The row-version part, MVCC and `VACUUM`, deserves a post of its own.

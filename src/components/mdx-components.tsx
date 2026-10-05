@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 import type { MDXComponents } from 'mdx/types';
 import { Panel } from '@/components/panel';
+import { QueryJourney } from '@/components/blog/query-journey';
 import { nodeText, slugifyHeading } from '@/lib/toc';
 
 // For portrait phone screenshots, which the full-width `img` below would blow
@@ -22,6 +23,8 @@ function ScreenshotRow({ children }: { children?: ReactNode }) {
 
 export const mdxComponents: MDXComponents = {
   ScreenshotRow,
+  // Click-through animation of a SELECT's journey; add new animations the same way.
+  QueryJourney,
   h2: ({ children, ...props }) => (
     <h2
       id={slugifyHeading(nodeText(children))}
