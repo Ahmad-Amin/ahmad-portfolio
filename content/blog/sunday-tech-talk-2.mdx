@@ -1,0 +1,208 @@
+---
+title: "Sunday Tech Talk #2: AI that builds interfaces, works across your apps, and runs in a sandbox"
+date: "2026-10-11"
+excerpt: "Episode two: ChatGPT's Intelligent UI with GPT-6, Google's Gemini Agent for work, Microsoft's Execution Containers for sandboxing agents, and Anthropic's free vulnerability scanner for open-source projects."
+tags: ["sunday-tech-talk", "ai", "ai-agents", "security"]
+series: "sunday-tech-talk"
+seriesOrder: 2
+---
+
+Welcome to the second episode of **Sunday Tech Talk**, the weekly series where I
+pick a few of the most important developments in technology and look at why they
+matter to people who build software.
+
+This week brought announcements from OpenAI, Google, Microsoft and Anthropic.
+They cover different ground, but one question runs through all four: **how do we
+let AI take part in real software systems, and keep it safe while it does?**
+
+If you missed the first episode, it's
+[here](/blog/sunday-tech-talk-1). It was about AI agents that keep working on their own.
+This week is about what surrounds them: the interface, the integrations, the
+sandbox, and the security work.
+
+## GPT-6 and Intelligent UI: answers that are interfaces
+
+For years the pattern has been **prompt → response**, where the response is
+mostly text, code or an image.
+
+With GPT-6, OpenAI is rolling out **Intelligent UI** in ChatGPT. Instead of
+answering only in text, ChatGPT can respond with charts, diagrams, forms and
+buttons, and it can build small tools, such as a savings calculator or a bill
+splitter, inside the conversation itself. The model decides which format fits,
+and when plain text is the best answer it still uses text.
+
+To picture it, imagine asking for a comparison of cloud costs. Instead of three
+paragraphs you'd get sliders for CPU, memory and storage and an estimate that
+updates as you move them. (That's my example, not one from OpenAI's announcement.)
+
+Generating frontend code isn't new. What's different is producing the interface
+**as part of the answer, at the moment you ask**, rather than as code that you
+then have to run somewhere.
+
+**Why it matters for engineers.** Most software is built around interfaces we
+design in advance: screens, forms, workflows. If an AI can assemble the interface
+per request, a few hard questions follow:
+
+- How do you render generated components safely?
+- Where does state live, and how do user interactions get validated?
+- Who enforces permissions on the actions a generated button can trigger?
+- How do you keep it accessible, consistent and reliable?
+
+Coverage of the launch describes the interface as built from a library of native
+components, not free-form code. If that's right, it's the safer design: a model
+choosing from a fixed vocabulary of components is far easier to constrain than
+one that writes arbitrary HTML and JavaScript. Either way, it doesn't make
+frontend work disappear. It adds a new layer, and someone has to design the
+components the model is allowed to use.
+
+The bigger question is whether AI becomes a new interface layer between people
+and software.
+
+**Official sources:** [GPT-6 and Intelligent UI for everyone (OpenAI)](https://openai.com/index/gpt-6-for-everyone/) and [Intelligent UI in ChatGPT (OpenAI Help Center)](https://help.openai.com/en/articles/20001598-intelligent-ui-in-chatgpt)
+
+## Gemini Agent: one agent across your work apps
+
+At its Gemini at Work event, Google introduced **Gemini Agent**, which it
+describes as a single, universal agent for work. You give it objectives, not step
+by step instructions.
+
+The notable part is how much it connects to. Google's post lists Gmail, Drive,
+Docs, Sheets and Calendar, plus tools such as Slack, Teams, Confluence, Git, Jira,
+Salesforce and ServiceNow, databases such as BigQuery, Snowflake and Postgres, and
+any server that speaks the **Model Context Protocol (MCP)**.
+
+Think about a request like: "Review customer complaints from the past week, find
+the recurring issues, check whether engineering already has tickets for them, and
+write me a summary." That crosses support tools, an issue tracker and a document,
+and no single app owns the whole answer.
+
+**Why it matters for engineers.** The hard part isn't getting a model to
+understand the request. It's the plumbing that lets it act on real systems
+without causing damage, and Google's post spends most of its time on exactly that:
+
+- **Identity:** each agent gets its own identity, with least-privilege,
+  role-based permissions.
+- **Audit trail:** every action is recorded and attributed to the agent, not to a
+  person.
+- **Sandbox and gateway:** agents run in an Agent Sandbox with its own network
+  boundary, and traffic passes through a gateway that enforces policy.
+- **Cost limits:** you can set a hard cap on a project's AI spend.
+
+Those are the same concerns I listed for persistent agents in episode one:
+permissions, observability, audit logs and human approval. This is the vendor
+describing its own product, so treat the details as claims until you've tried
+them. Google's post also doesn't clearly state general availability, and its
+industry-specific versions (Financial Services and Legal) are in preview.
+
+The second question is for anyone building a SaaS product. If more people ask an
+agent to use your app for them, then **your API and your agent-friendly
+integrations start to matter as much as your user interface.**
+
+**Official sources:** [Gemini at Work 2026 (Google Cloud)](https://cloud.google.com/blog/products/ai-machine-learning/welcome-to-gemini-at-work-2026). For the background platform, from April, see [Gemini Enterprise Agent Platform (Google Cloud)](https://cloud.google.com/blog/products/ai-machine-learning/introducing-gemini-enterprise-agent-platform).
+
+## Microsoft Execution Containers: a real boundary for agents
+
+Coding agents can read files, run terminal commands, change code and install
+packages. Ask one to fix a bug and it needs your project. It doesn't need your SSH
+keys, your personal documents or your production credentials.
+
+Microsoft's answer is **Execution Containers (MXC)**, a policy-driven layer for
+running untrusted or dynamically generated workloads, which includes model output,
+plugins, tools and whole agents. You declare what the workload needs, and MXC
+enforces it:
+
+- **File system:** which locations it can modify, which it can only read, and
+  which it can't touch.
+- **Network:** inbound and outbound connectivity, including access through the
+  host's loopback interface.
+- **User interface:** whether it can interact with the desktop.
+
+Microsoft says it's generally available, with process containers on Windows 11,
+macOS and Linux. Some pieces, such as MicroVM support, are still experimental.
+
+**Why it matters for engineers.** Compare two ways to restrict an agent:
+
+1. **Prompt-based:** tell the model "do not access files outside the project
+   directory." It's expected to comply, but the instruction is not a security
+   boundary.
+2. **Environment-enforced:** run it in a sandbox where the environment itself
+   blocks the access. Even if the agent tries, it can't.
+
+Microsoft's design adds a detail I like: the policy sits outside the workload's
+control, so an agent can't widen its own permissions.
+
+None of this is new. It's least privilege, isolation and sandboxing, applied to a
+new kind of program. And note that Google's Agent Sandbox and Microsoft's MXC
+arrived in the same week. Sandboxing is quickly becoming a normal part of agent
+architecture.
+
+**Official source:** [Execution Containers: policy-driven containment for AI agents (Microsoft)](https://blogs.windows.com/windowsdeveloper/2026/10/07/microsoft-execution-containers-policy-driven-containment-for-ai-agents/)
+
+## Anthropic Cyber Mission: scanning open source for vulnerabilities
+
+Nearly every application sits on open-source code, from Linux and PostgreSQL to
+React and Node.js, and much of it is maintained by small teams with little time
+for security work.
+
+Anthropic announced the **Cyber Mission**, a long-term effort with two starting
+areas: protecting critical infrastructure, and finding and fixing vulnerabilities
+in open-source software.
+
+For open source, the main piece is **OSS Scanner**. Maintainers of eligible
+projects can opt in, free of charge, to regular security scans from Anthropic's
+strongest models. Each report includes a reproducer, an explanation of the bug
+and, where possible, a candidate patch. Maintainers apply by opening a pull
+request on their project's repository, and Anthropic decides case by case based
+on the project's importance to infrastructure and security.
+
+**Why it matters for engineers.** The reports are fully model-generated, without
+human review, so some will be wrong, and Anthropic says plainly that it can't
+guarantee the scanner is perfect. In a pilot, expert penetration testers reviewed
+97 critical and high-severity findings across 48 projects. About 88% were good
+enough to enter Anthropic's coordinated disclosure process, 11 were real but
+duplicated known issues, and one was a false positive.
+
+That pilot is a good reminder that finding a bug is the first step. A complete
+security workflow still needs someone to:
+
+1. Confirm the vulnerability is real.
+2. Work out its impact.
+3. Write a patch.
+4. Test the fix for regressions.
+5. Coordinate disclosure and release an update.
+
+The question this raises is a hard one. **What happens if AI can find
+vulnerabilities faster than maintainers can fix them?** Last week's Gemini 4 Argon
+story, in [episode one](/blog/sunday-tech-talk-1), points the same way.
+
+**Official sources:** [Introducing the Anthropic Cyber Mission](https://www.anthropic.com/news/anthropic-cyber-mission) and [Launching an opt-in vulnerability-finding service for open source](https://www.anthropic.com/research/launching-opt-in-vuln-finding-service-for-open-source)
+
+## The bigger picture: AI is becoming part of the stack
+
+Put the four together:
+
+- **OpenAI** is exploring interfaces that are generated per request.
+- **Google** is building agents that work across a company's apps.
+- **Microsoft** is building the boundary that keeps an agent contained.
+- **Anthropic** is pointing AI at the security of the software everyone shares.
+
+AI is moving from being something you talk to toward being part of the
+infrastructure for how software is used, run and secured. Two of this week's
+stories are about giving agents more reach, and the other two are about
+containing and defending. That balance is the point.
+
+For engineers, that means more attention on agent architecture, APIs,
+permissions, observability and how generated interfaces fit into existing apps.
+The question is shifting from **"how good is AI at generating answers?"** to
+**"how reliably and securely can AI take part in real software systems?"**
+
+## Watch the episode
+
+In the full video I go deeper into each of these four stories, the engineering
+behind them, and what I think they mean for developers.
+
+**YouTube:** [Watch Sunday Tech Talk on the TechWithSwag channel](https://www.youtube.com/channel/UCW5W5TuR0oIPRkW-lqEAs8g)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
