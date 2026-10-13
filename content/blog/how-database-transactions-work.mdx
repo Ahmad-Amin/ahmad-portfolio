@@ -1,0 +1,233 @@
+---
+title: "How database transactions actually work: WAL, MVCC and crash recovery"
+date: "2026-10-13"
+excerpt: "When PostgreSQL says COMMIT succeeded, your table pages may not be on disk yet. Here is how the write-ahead log, row versions and checkpoints make that safe."
+tags: ["postgresql", "databases", "performance"]
+series: "postgresql-internals"
+seriesOrder: 5
+---
+
+You transfer $500 between two accounts: subtract from A, add to B, `COMMIT`.
+Two things can go wrong. The server can crash between the two updates, or another
+session can read the balances halfway through.
+
+There's a third question that surprises people: when PostgreSQL tells you the
+commit succeeded, **have the changed rows been written to their table files?**
+Not necessarily.
+
+Three mechanisms work together here, and each solves a different problem:
+
+- **WAL** (the write-ahead log) makes committed changes survive a crash.
+- **MVCC** (multi-version concurrency control) lets transactions run side by side
+  without seeing each other's half-finished work.
+- **Checkpoints** keep crash recovery short.
+
+This builds on [how PostgreSQL executes a query](/blog/how-postgresql-executes-a-query)
+and [what happens when you run a SELECT](/blog/what-happens-when-you-run-a-select).
+
+## What a transaction promises
+
+```sql
+BEGIN;
+UPDATE accounts SET balance = balance - 500 WHERE id = 1;
+UPDATE accounts SET balance = balance + 500 WHERE id = 2;
+COMMIT;
+```
+
+This is the classic ACID list:
+
+| Property | Meaning |
+|---|---|
+| Atomicity | All of it happens, or none of it. |
+| Consistency | Constraints still hold afterwards. |
+| Isolation | Concurrent transactions don't interfere beyond what the isolation level allows. |
+| Durability | Once committed, it survives a crash. |
+
+The rest of this post is how PostgreSQL delivers these without making every
+commit slow.
+
+## Why commit doesn't write your table pages
+
+Postgres reads and writes 8 KB pages, and works on them in memory, in
+`shared_buffers`. An `UPDATE` changes the page there and marks it **dirty**. The
+dirty page is written to the table file later.
+
+If every commit had to write every changed page, a transaction touching a
+thousand rows across hundreds of pages would mean hundreds of scattered writes
+before you got an answer. So Postgres does something cheaper.
+
+## The write-ahead log
+
+The rule behind WAL, in the docs' words: changes to data files must be written
+only after those changes have been logged, meaning the WAL records describing
+them have been flushed to permanent storage.
+
+So at commit, Postgres only has to flush the **log**. The docs say it plainly:
+only the WAL file needs to be flushed to guarantee a transaction is committed,
+not every data file it changed.
+
+That's faster because the log is appended in order, so the write is mostly
+sequential, and several transactions committing at once can share one flush
+(group commit). Note that WAL isn't a list of SQL statements. It describes
+changes to pages, and it can get large, since Postgres also logs full page
+images after checkpoints (more on that below).
+
+You can watch it grow:
+
+```sql
+SELECT pg_current_wal_lsn();   -- current position in the log
+
+UPDATE accounts SET balance = balance - 500 WHERE id = 1;
+
+SELECT pg_current_wal_lsn();   -- a higher position
+```
+
+An LSN (log sequence number) is just a byte position in the WAL stream.
+
+## What COMMIT does
+
+1. The update creates a **new row version** in a buffered page.
+2. WAL records describing the change are generated.
+3. `COMMIT` writes a commit record to the WAL.
+4. Postgres **flushes the WAL** up to that record to disk.
+5. Only then does it report success to you.
+
+The table page may still be dirty in memory, and that's fine. If the server
+crashes now, the committed change can be rebuilt from the log. The useful mental
+model: **COMMIT means "recoverable", not "every page is on disk".**
+
+### The one setting to know about
+
+With `synchronous_commit = off`, Postgres reports success *before* the WAL is
+flushed. That's asynchronous commit. A crash can lose the last few committed
+transactions, with a risk window of up to three times `wal_writer_delay`. But the
+docs are explicit that this risks losing data, not corrupting it, and it can be
+set per transaction. It suits things like page-view logs, not payments.
+
+`fsync = off` is a different, far more dangerous setting. It can cause
+arbitrarily bad corruption after a crash. Don't use it for data you care about.
+
+## MVCC: many versions, one consistent view
+
+Now the concurrency problem. Account A holds $1,000. Session 1 updates it to $800
+but hasn't committed. Session 2 runs a `SELECT`. What should it see?
+
+Postgres doesn't overwrite the row. An `UPDATE` creates a **new row version** and
+leaves the old one in place. Each version carries a few system columns you can
+look at:
+
+```sql
+SELECT xmin, xmax, ctid, balance FROM accounts WHERE id = 1;
+```
+
+- `xmin`: the transaction that created this version.
+- `xmax`: the transaction that deleted or updated it, or has locked it. So it
+  isn't a simple "deleted" flag.
+- `ctid`: the version's physical location. Run the query before and after an
+  update and you'll see it change.
+
+Each statement or transaction works from a **snapshot**: which transactions had
+committed, and which were still running. A row version is visible only if its
+creating transaction is visible in your snapshot and nothing visible has removed
+it. Session 2's snapshot doesn't include Session 1, so it keeps seeing $1,000.
+After Session 1 commits, new snapshots see $800.
+
+That's why, as the docs put it, reading never blocks writing and writing never
+blocks reading.
+
+### But locks still exist
+
+MVCC doesn't remove locking. Two sessions updating the **same row** still have to
+take turns. In the default isolation level, the second one waits for the first
+to commit or roll back, then re-checks its `WHERE` clause against the new
+version and carries on. `SELECT ... FOR UPDATE` and explicit table locks also
+make sessions wait.
+
+### Rollback has no undo log
+
+Many databases keep an undo log to reverse changes. Postgres doesn't need to.
+A rolled-back transaction is simply marked as aborted, so the row versions it
+created are never visible to anyone. They sit in the table as dead space until
+cleanup. That's one reason `VACUUM` exists, and why a long-running transaction is
+costly: old versions must be kept while any snapshot might still need them.
+
+## Isolation levels
+
+How fresh a snapshot is depends on the isolation level:
+
+| Level | What you get in PostgreSQL |
+|---|---|
+| Read Uncommitted | Behaves exactly like Read Committed. |
+| Read Committed (default) | A new snapshot for **each statement**. |
+| Repeatable Read | One snapshot for the **whole transaction**. No phantom reads. |
+| Serializable | Behaves as if transactions ran one at a time. |
+
+Two details that matter in practice:
+
+- A Repeatable Read transaction that tries to change a row another transaction
+  has changed since it began fails with `could not serialize access due to
+  concurrent update`. Repeatable Read can also still allow write skew.
+- Serializable (which uses Serializable Snapshot Isolation) can abort a
+  transaction when it detects a dangerous pattern. The SQLSTATE is `40001`.
+
+For both, the docs say the application should **retry the whole transaction**.
+That isn't the database malfunctioning. It's the database keeping its promise.
+
+## Crash recovery
+
+Say a commit succeeds, the table pages are still dirty in memory, and the power
+goes. Memory is wiped. Is the commit lost? No, because its WAL was flushed first
+(assuming your storage honors flush requests).
+
+On restart, Postgres finds the latest checkpoint record, which tells it where in
+the WAL to begin, and **replays** the log from there, redoing any change that
+hadn't reached its data page. The docs call this roll-forward recovery, or REDO.
+
+What about a transaction that was still running when the crash hit? Its WAL
+records get replayed too, because recovery doesn't skip them. But it never wrote
+a commit record, so it counts as aborted, and the same visibility rules that hide
+rolled-back changes hide it. No separate undo pass is needed.
+
+## Checkpoints keep recovery short
+
+If recovery had to replay the log from the first day, restarts would take
+forever. A **checkpoint** flushes all dirty pages to disk and writes a checkpoint
+record to the WAL. Everything before the checkpoint's redo point is guaranteed to
+be on disk, so older WAL can be recycled.
+
+A checkpoint starts every `checkpoint_timeout` (default 5 minutes) or when
+`max_wal_size` (default 1 GB) is about to be exceeded. It doesn't stop the
+database: the writes are spread out over time, controlled by
+`checkpoint_completion_target`.
+
+There's a trade-off. More frequent checkpoints mean faster recovery, but more
+flushing. They also add WAL volume: with `full_page_writes` on (the default), the
+first change to a page after each checkpoint logs the **entire page**, which
+protects against a page being half-written when a crash hits.
+
+## What this means in practice
+
+- **A successful COMMIT is a durable one,** by default. It doesn't mean your table
+  pages have been written.
+- **Long-running and idle-in-transaction sessions hurt everyone.** They hold old
+  row versions alive, which causes bloat and more `VACUUM` work.
+- **Each index adds write cost.** A row change touches the table, its indexes and
+  the WAL. [Part 3](/blog/btree-indexes-explained-from-first-principles) covers
+  this, including HOT updates.
+- **Commit latency is WAL flush latency.** Many tiny transactions each pay for a
+  flush, so batching related work into one transaction helps, as long as you
+  don't hold it open for long.
+- **Be ready to retry.** With Repeatable Read or Serializable, write code that
+  retries on `40001`.
+- **WAL is not a backup.** If you commit a mistaken `DELETE`, the log faithfully
+  records it. Getting back an earlier state needs a base backup plus archived WAL
+  for point-in-time recovery.
+
+## One line each
+
+- **MVCC** decides which row versions you can see.
+- **WAL** makes committed changes recoverable.
+- **Checkpoints** bound how much WAL recovery has to replay.
+
+A transaction isn't a list of writes to disk. It's visibility, durability and
+recovery, handled separately by parts of Postgres built to work together.

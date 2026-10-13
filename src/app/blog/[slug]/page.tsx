@@ -1,34 +1,28 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { MDXRemote } from "next-mdx-remote/rsc";
-import {
-  getAllPosts,
-  getPostBySlug,
-  getSeriesPlanned,
-  getSeriesPosts,
-  formatPostDate,
-} from "@/lib/blog";
-import { series } from "@/data/series";
-import { mdxComponents } from "@/components/mdx-components";
-import { mdxOptions } from "@/lib/mdx";
-import { Section } from "@/components/section";
-import { PageTransition } from "@/components/page-transition";
-import { BootIn, BootItem } from "@/components/boot-in";
-import { RecentPosts } from "@/components/blog/recent-posts";
-import { TableOfContents } from "@/components/blog/table-of-contents";
-import { MobileTableOfContents } from "@/components/blog/mobile-table-of-contents";
-import { ShareButtons } from "@/components/blog/share-buttons";
-import { PostNav } from "@/components/blog/post-nav";
-import { SeriesBox } from "@/components/blog/series-box";
-import { SeriesNav } from "@/components/blog/series-nav";
-import { SubscribeForm } from "@/components/subscribe-form";
-import { extractHeadings } from "@/lib/toc";
-import { feedPath, siteUrl } from "@/lib/site";
-import { profile } from "@/data/profile";
-import { socials } from "@/data/socials";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { MDXRemote } from 'next-mdx-remote/rsc';
+import { getAllPosts, getPostBySlug, getSeriesPlanned, getSeriesPosts, formatPostDate } from '@/lib/blog';
+import { series } from '@/data/series';
+import { mdxComponents } from '@/components/mdx-components';
+import { mdxOptions } from '@/lib/mdx';
+import { Section } from '@/components/section';
+import { PageTransition } from '@/components/page-transition';
+import { BootIn, BootItem } from '@/components/boot-in';
+import { RecentPosts } from '@/components/blog/recent-posts';
+import { TableOfContents } from '@/components/blog/table-of-contents';
+import { MobileTableOfContents } from '@/components/blog/mobile-table-of-contents';
+import { ShareButtons } from '@/components/blog/share-buttons';
+import { PostNav } from '@/components/blog/post-nav';
+import { SeriesBox } from '@/components/blog/series-box';
+import { SeriesNav } from '@/components/blog/series-nav';
+import { SubscribeForm } from '@/components/subscribe-form';
+import { extractHeadings } from '@/lib/toc';
+import { feedPath, siteUrl } from '@/lib/site';
+import { profile } from '@/data/profile';
+import { socials } from '@/data/socials';
 
-const RECENT_POSTS_COUNT = 5;
+const RECENT_POSTS_COUNT = 3;
 // Short posts don't need a table of contents.
 const MIN_TOC_HEADINGS = 3;
 
@@ -38,9 +32,7 @@ export function generateStaticParams() {
   return getAllPosts().map((post) => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps<"/blog/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<'/blog/[slug]'>): Promise<Metadata> {
   const { slug } = await params;
   const post = getPostBySlug(slug);
   if (!post) return {};
@@ -50,26 +42,24 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.excerpt,
-    alternates: { canonical: url, types: { "application/rss+xml": feedPath } },
+    alternates: { canonical: url, types: { 'application/rss+xml': feedPath } },
     openGraph: {
       title: post.title,
       description: post.excerpt,
-      type: "article",
+      type: 'article',
       publishedTime: post.date,
       url,
-      siteName: "TechWithSwag",
+      siteName: 'TechWithSwag',
     },
     twitter: {
-      card: "summary_large_image",
+      card: 'summary_large_image',
       title: post.title,
       description: post.excerpt,
     },
   };
 }
 
-export default async function BlogPostPage({
-  params,
-}: PageProps<"/blog/[slug]">) {
+export default async function BlogPostPage({ params }: PageProps<'/blog/[slug]'>) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
   if (!post) notFound();
@@ -78,9 +68,7 @@ export default async function BlogPostPage({
   const index = allPosts.findIndex((p) => p.slug === post.slug);
   const newer = index > 0 ? allPosts[index - 1] : null;
   const older = index < allPosts.length - 1 ? allPosts[index + 1] : null;
-  const recentPosts = allPosts
-    .filter((p) => p.slug !== post.slug)
-    .slice(0, RECENT_POSTS_COUNT);
+  const recentPosts = allPosts.filter((p) => p.slug !== post.slug).slice(0, RECENT_POSTS_COUNT);
 
   const seriesPosts = post.series ? getSeriesPosts(post.series) : [];
   const seriesUpcoming = post.series ? getSeriesPlanned(post.series) : [];
@@ -96,25 +84,25 @@ export default async function BlogPostPage({
   // Helps search engines show author/date info and surfaces the post to
   // AI answer engines with a real citation (complements llms.txt).
   const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
     datePublished: post.date,
     dateModified: post.date,
     url: postUrl,
-    mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
     image: `${postUrl}/opengraph-image`,
-    inLanguage: "en",
-    keywords: post.tags.join(", "),
+    inLanguage: 'en',
+    keywords: post.tags.join(', '),
     author: {
-      "@type": "Person",
+      '@type': 'Person',
       name: profile.name,
       url: siteUrl,
       sameAs: socials.map((social) => social.url),
     },
     publisher: {
-      "@type": "Organization",
+      '@type': 'Organization',
       name: profile.brand,
       url: siteUrl,
     },
@@ -128,100 +116,84 @@ export default async function BlogPostPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PageTransition>
-<Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
-        <div className="mx-auto grid max-w-272 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
-          <article className="min-w-0">
-            <BootIn>
-              <BootItem>
-                <h1
-                  id="post-heading"
-                  className="text-display-sm font-semibold tracking-tight text-foreground"
-                >
-                  {post.title}
-                </h1>
-              </BootItem>
-              <BootItem>
-                <p className="mt-4 font-mono text-sm tabular-nums text-muted">
-                  <time dateTime={post.date}>{formatPostDate(post.date)}</time>{" "}
-                  · {post.readingTime}
-                </p>
-              </BootItem>
-
-              {post.tags.length > 0 && (
-                <BootItem className="mt-4 flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/blog?tag=${encodeURIComponent(tag)}`}
-                      className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
-                    >
-                      {tag}
-                    </Link>
-                  ))}
+        <Section id="post" labelledBy="post-heading" className="pt-32 sm:pt-40">
+          <div className="mx-auto grid max-w-272 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,42rem)_1fr] lg:items-start lg:gap-16">
+            <article className="min-w-0">
+              <BootIn>
+                <BootItem>
+                  <h1 id="post-heading" className="text-display-sm font-semibold tracking-tight text-foreground">
+                    {post.title}
+                  </h1>
                 </BootItem>
+                <BootItem>
+                  <p className="mt-4 font-mono text-sm tabular-nums text-muted">
+                    <time dateTime={post.date}>{formatPostDate(post.date)}</time> · {post.readingTime}
+                  </p>
+                </BootItem>
+
+                {post.tags.length > 0 && (
+                  <BootItem className="mt-4 flex flex-wrap gap-2">
+                    {post.tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/blog?tag=${encodeURIComponent(tag)}`}
+                        className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+                      >
+                        {tag}
+                      </Link>
+                    ))}
+                  </BootItem>
+                )}
+              </BootIn>
+
+              {post.series && seriesPosts.length > 1 && (
+                <SeriesBox seriesSlug={post.series} posts={seriesPosts} currentSlug={post.slug} upcoming={seriesUpcoming} />
               )}
-            </BootIn>
 
-            {post.series && seriesPosts.length > 1 && (
-              <SeriesBox
-                seriesSlug={post.series}
-                posts={seriesPosts}
-                currentSlug={post.slug}
-                upcoming={seriesUpcoming}
-              />
-            )}
+              {showToc && <MobileTableOfContents headings={headings} />}
 
-            {showToc && <MobileTableOfContents headings={headings} />}
+              <MDXRemote source={post.content} components={mdxComponents} options={{ mdxOptions }} />
 
-            <MDXRemote
-              source={post.content}
-              components={mdxComponents}
-              options={{ mdxOptions }}
-            />
-
-            <div className="mt-16 border-t border-border pt-8">
-              <div className="mb-10">
-                <SubscribeForm />
-              </div>
-              <ShareButtons
-                title={post.title}
-                url={`${siteUrl}/blog/${post.slug}`}
-              />
-              {seriesInfo && post.series && seriesPosts.length > 1 && (
-                <SeriesNav
-                  seriesSlug={post.series}
-                  seriesTitle={seriesInfo.title}
-                  position={seriesIndex + 1}
-                  total={seriesPosts.length}
-                  previous={seriesPrevious}
-                  next={seriesNext}
+              <div className="mt-16 border-t border-border pt-8">
+                <div className="mb-10">
+                  <SubscribeForm />
+                </div>
+                <ShareButtons title={post.title} url={`${siteUrl}/blog/${post.slug}`} />
+                {seriesInfo && post.series && seriesPosts.length > 1 && (
+                  <SeriesNav
+                    seriesSlug={post.series}
+                    seriesTitle={seriesInfo.title}
+                    position={seriesIndex + 1}
+                    total={seriesPosts.length}
+                    previous={seriesPrevious}
+                    next={seriesNext}
+                  />
+                )}
+                {/* A post already shown in the series block isn't repeated below it. */}
+                <PostNav
+                  newer={newer && newer.slug !== seriesPrevious?.slug && newer.slug !== seriesNext?.slug ? newer : null}
+                  older={older && older.slug !== seriesPrevious?.slug && older.slug !== seriesNext?.slug ? older : null}
                 />
-              )}
-              {/* A post already shown in the series block isn't repeated below it. */}
-              <PostNav
-                newer={newer && newer.slug !== seriesPrevious?.slug && newer.slug !== seriesNext?.slug ? newer : null}
-                older={older && older.slug !== seriesPrevious?.slug && older.slug !== seriesNext?.slug ? older : null}
-              />
-            </div>
-          </article>
+              </div>
+            </article>
 
-          {(showToc || recentPosts.length > 0) && (
-            <aside className="lg:sticky lg:top-32 lg:-mx-1 lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1">
-              {showToc && (
-                <div className="hidden lg:block">
-                  <TableOfContents headings={headings} />
-                </div>
-              )}
-              {recentPosts.length > 0 && (
-                <div className={showToc ? "lg:mt-8" : undefined}>
-                  <RecentPosts posts={recentPosts} />
-                </div>
-              )}
-            </aside>
-          )}
-        </div>
-      </Section>
-</PageTransition>
+            {(showToc || recentPosts.length > 0) && (
+              <aside className="lg:sticky lg:top-32 lg:-mx-1 lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1">
+                {showToc && (
+                  <div className="hidden lg:block">
+                    <TableOfContents headings={headings} />
+                  </div>
+                )}
+                {recentPosts.length > 0 && (
+                  <div className={showToc ? 'lg:mt-8' : undefined}>
+                    <RecentPosts posts={recentPosts} />
+                  </div>
+                )}
+              </aside>
+            )}
+          </div>
+        </Section>
+      </PageTransition>
     </>
   );
 }
