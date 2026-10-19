@@ -1,0 +1,187 @@
+---
+title: "UUID v4 vs UUID v7: how your primary key affects index performance"
+date: "2026-10-17"
+excerpt: "Both are 128-bit UUIDs, but one scatters inserts across your B-tree and the other keeps them on the right edge. What that changes, what it doesn't, and how to measure it."
+tags: ["postgresql", "databases", "performance"]
+series: "postgresql-internals"
+seriesOrder: 6
+---
+
+Picking a primary key feels like a small decision. Auto-increment integers, or
+UUIDs that any service can generate without asking the database. If you go with
+UUIDs, there's a detail that's easy to miss: **not all UUIDs behave the same
+inside an index.**
+
+UUID v4 is random. UUID v7 starts with a timestamp, so values are roughly
+time-ordered. Both are 128 bits, both can be generated outside the database, and
+both work as primary keys. But they fill a B-tree very differently. This post
+builds on [how B-tree indexes work](/blog/btree-indexes-explained-from-first-principles).
+
+## The primary key is a sorted index
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL
+);
+```
+
+A primary key creates a unique B-tree index, which keeps its keys in sorted
+order. Every insert has to find the correct leaf page for its key and put the
+entry there. When the page is full, it splits. Where a new key lands, and how
+often that page is already in memory, is decided by the key itself.
+
+## UUID v4: random keys land everywhere
+
+A v4 UUID is random bits, so a new key has no relationship to the ones before it:
+
+```text
+f47ac10b-58cc-4372-a567-0e02b2c3d479
+2c1a9d40-...
+a7b92310-...
+```
+
+Each insert can land on a different leaf page. On a big index that means:
+
+- **A larger working set.** Inserts touch pages all over the index, so more of
+  it needs to stay cached, and the cache misses once it no longer fits.
+- **More dirty pages in more places** to write back later.
+- **Splits happen all over the tree,** which tends to leave pages partly empty
+  and the index bigger than it needs to be.
+
+One clarification: this isn't "every insert is a random disk write". Postgres
+changes pages in memory and writes them later. The problem is poor locality:
+changes spread across many pages.
+
+## UUID v7: new keys land on the right edge
+
+UUID v7 is defined in RFC 9562. Its first 48 bits are a Unix timestamp in
+milliseconds, followed by the version bits and random data:
+
+```text
+| unix_ts_ms | ver | rand_a | var | rand_b |
+|  48 bits   |  4  | 12 bits|  2  | 62 bits|
+```
+
+Because the timestamp comes first, newer UUIDs sort after older ones. In a B-tree
+that means new keys keep landing at the **rightmost leaf**. The same few pages
+stay hot in cache, and splits happen at the edge, not scattered through the
+index.
+
+"Roughly" ordered matters. Two services with different clocks, or several IDs
+generated within the same millisecond, can come out slightly out of order. The RFC
+leaves how to order IDs within a millisecond up to the implementation. For
+index locality that's fine, since nearly-sorted is nearly as good as sorted.
+
+## What v7 changes, and what it doesn't
+
+- **Insert locality improves.** Fewer distinct pages are touched, so more cache
+  hits and less scattering of dirty pages.
+- **Single-row lookups don't get faster.** `WHERE id = ...` is the same B-tree
+  descent for either version.
+- **Page splits don't disappear.** They move to the right edge. The tree still
+  needs maintenance.
+- **WAL isn't smaller per insert.** Both are 16 bytes, both need an index entry
+  and a WAL record. Any saving comes from fewer scattered page changes and
+  splits, so it depends on your workload.
+- **The right edge can become hot.** Under very high concurrent insert rates,
+  everyone is fighting for the same last page. Random keys spread that out.
+
+So v7 isn't a universal speed-up. It's a better fit for **write-heavy tables with
+large indexes**, where scattered inserts hurt most.
+
+It also gives you something useful for free: `ORDER BY id DESC LIMIT 20` returns
+roughly the newest rows using the primary-key index. But that's the time the ID
+was generated, not necessarily your `created_at`, so keep a real timestamp
+column for business logic.
+
+## Using it in PostgreSQL
+
+PostgreSQL 18 has `uuidv7()` built in. For v4 it has `gen_random_uuid()` (also
+available as `uuidv4()`).
+
+```sql
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    customer_id UUID NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL
+);
+```
+
+The column is the normal `uuid` type either way. Per the docs, it stores a UUID
+of any version, so you don't change the schema, only how the value is generated.
+Before version 18, generate v7 values in your application or with an extension.
+
+`uuidv7()` also takes an optional interval to shift the timestamp, and
+`uuid_extract_timestamp()` reads the time back out of a v7 value:
+
+```sql
+SELECT uuid_extract_timestamp(uuidv7());
+```
+
+## Measure it, don't assume it
+
+Try it on your own data, on PostgreSQL 18:
+
+```sql
+CREATE TABLE events_v4 (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), payload TEXT);
+CREATE TABLE events_v7 (id UUID PRIMARY KEY DEFAULT uuidv7(),          payload TEXT);
+
+INSERT INTO events_v4 (payload) SELECT md5(g::text) FROM generate_series(1, 1000000) g;
+INSERT INTO events_v7 (payload) SELECT md5(g::text) FROM generate_series(1, 1000000) g;
+
+CREATE EXTENSION IF NOT EXISTS pgstattuple;
+SELECT leaf_pages, avg_leaf_density FROM pgstatindex('events_v4_pkey');
+SELECT leaf_pages, avg_leaf_density FROM pgstatindex('events_v7_pkey');
+```
+
+Compare index size, leaf density and insert time. Two honest warnings: one
+million rows may be too small to show much if both indexes fit in memory, and a
+single bulk `INSERT` isn't how a real app writes. Repeat the test with many
+concurrent small inserts and an index larger than your cache before trusting
+the result.
+
+## How it compares with bigserial
+
+| | UUID v4 | UUID v7 | `bigserial` |
+|---|---|---|---|
+| Size | 16 bytes | 16 bytes | 8 bytes |
+| Index inserts | Random | Roughly sequential | Sequential |
+| Generated by | Anywhere | Anywhere | The database |
+| Reveals creation time | No | Yes, approximately | Roughly, by order |
+
+If you don't need IDs generated outside the database, `bigserial` is smaller and
+still hard to beat. v7 is the pick when you want UUIDs and good insert locality.
+
+## Should you migrate existing v4 keys?
+
+Usually not. Primary keys are referenced by foreign keys, APIs, jobs and other
+systems, so changing them is a big, risky migration for a gain you haven't
+measured. A better plan: use v7 for new tables, and leave old ones alone. A `uuid`
+column can hold both, but old v4 values stay random, so a mixed column won't sort
+chronologically.
+
+## One caution: v7 leaks the creation time
+
+Anyone with a v7 ID can read when it was created, using `uuid_extract_timestamp()`.
+That's fine for most apps, but think twice if timing is sensitive.
+
+And a UUID is an identifier, not a secret. The RFC says UUIDs must not be used as
+security capabilities, and recommends v4 when unguessability matters. Always check
+authorization properly, whichever version you use.
+
+## The short version
+
+- **v4** spreads inserts across the whole index. **v7** keeps them near the end.
+- That helps **cache locality and index growth** on big, write-heavy tables.
+- It doesn't speed up single-row lookups, remove page splits or shrink WAL.
+- Measure on your workload, and don't migrate working systems just for this.
+
+The key you choose decides how your index grows, which is a good reminder that
+performance isn't only about the queries you write.
+
+**References:** [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562.html),
+[PostgreSQL: UUID type](https://www.postgresql.org/docs/current/datatype-uuid.html),
+[PostgreSQL: UUID functions](https://www.postgresql.org/docs/current/functions-uuid.html),
+[PostgreSQL: B-tree implementation](https://www.postgresql.org/docs/current/btree.html),
+[PostgreSQL: pgstattuple](https://www.postgresql.org/docs/current/pgstattuple.html)
