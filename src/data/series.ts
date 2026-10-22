@@ -23,6 +23,11 @@ export const series: Record<string, SeriesInfo> = {
       "How PostgreSQL executes a query, finds your data, and why its B-tree indexes behave the way they do.",
     // Example: planned: [{ title: "How MVCC and VACUUM work", order: 4 }],
   },
+  "kafka-internals": {
+    title: "Kafka Internals",
+    description:
+      "How Apache Kafka works under the hood: how it stores messages on disk, and the design choices that make it fast.",
+  },
   "sunday-tech-talk": {
     title: "Sunday Tech Talk",
     description:

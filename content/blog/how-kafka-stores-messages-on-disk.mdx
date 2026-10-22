@@ -1,0 +1,157 @@
+---
+title: "How Kafka actually stores messages on disk"
+date: "2026-10-22"
+excerpt: "Partitions, segments, offsets, indexes and the page cache: what a Kafka topic looks like as files, and why that design is fast."
+tags: ["kafka", "distributed-systems", "performance"]
+series: "kafka-internals"
+seriesOrder: 1
+---
+
+Kafka feels like a message queue, but under the hood it's much simpler: **a set of
+append-only files on disk.** Once you can picture those files, a lot of Kafka's
+behavior (why it's fast, how consumers replay old messages, what retention does)
+stops being mysterious.
+
+This is the first post in a series on Kafka internals. We'll start with the
+storage layer.
+
+## Topic, partition, log
+
+A **topic** is split into **partitions**. Each partition is an ordered,
+append-only **log**: new messages go on the end, and existing ones are never
+changed.
+
+Every message in a partition gets an **offset**, a number that goes 0, 1, 2 and
+so on. Offsets are per partition, so two partitions each have their own offset 0.
+Kafka only guarantees ordering **within a partition**, and by default messages with
+the same key go to the same partition (the key is hashed), which is how you keep
+related events in order.
+
+## What's on disk: one directory per partition
+
+A topic called `my-topic` with two partitions becomes two directories on the
+broker, `my-topic-0` and `my-topic-1`. Inside one:
+
+```text
+my-topic-0/
+  00000000000000000000.log
+  00000000000000000000.index
+  00000000000000000000.timeindex
+  00000000000000368769.log
+  00000000000000368769.index
+  00000000000000368769.timeindex
+```
+
+The log isn't one giant file. It's cut into **segments**, and each segment is a
+group of files that share a name: the **offset of the first message** in that
+segment, padded to 20 digits. The second group above starts at offset 368,769.
+
+- `.log` holds the messages themselves.
+- `.index` helps find a message by offset.
+- `.timeindex` helps find a message by timestamp.
+
+(There are a few small bookkeeping files too.) Only the **newest** segment, the
+*active segment*, is ever written to. Older ones are read-only.
+
+## How a segment rolls
+
+A new segment starts when the active one gets too big or too old. The defaults are
+`log.segment.bytes` = 1 GiB and `log.roll.hours` = 168 (seven days), and whichever
+comes first wins. Segments are what make the rest of Kafka's design work, as you'll
+see in a moment.
+
+## What's inside a segment
+
+Producers send messages in **batches**, and Kafka stores them as batches, in the
+same format that goes over the network. The docs highlight why: the broker can pass
+a batch from producer to disk to consumer without recopying or converting it.
+
+## Reading by offset: find the segment, then the position
+
+Say a consumer asks for offset 368,800.
+
+1. **Pick the segment.** Kafka keeps the segments' starting offsets in memory and
+   searches them. The right one is the segment with the largest starting offset that
+   isn't higher than the one you want. Here that's `00000000000000368769`.
+2. **Use the index.** The `.index` file maps offsets to byte positions in the
+   `.log` file. It's **sparse**: by default it only adds an entry every 4 KiB of
+   data (`log.index.interval.bytes`), not one per message. So Kafka finds the
+   nearest entry at or before the target.
+3. **Scan forward.** From that byte position, read the log until the exact offset.
+
+Because the index is sparse, it stays small, and the final scan covers only a few
+KiB. The `.timeindex` works the same way for "give me messages from 3 pm", mapping
+timestamps to offsets.
+
+You can look inside a segment yourself with the tool Kafka ships:
+
+```bash
+bin/kafka-dump-log.sh --files /path/to/my-topic-0/00000000000000000000.log
+```
+
+## Why it's fast: the page cache
+
+Kafka doesn't keep its own big in-memory cache of messages. The docs say it relies
+heavily on the filesystem for storing and caching messages.
+
+On a write, Kafka appends to the log, which really means the data lands in the
+operating system's **page cache** first. The OS writes it to disk later. Writes are
+sequential appends, which disks and SSDs are good at, and as the docs note, reads
+don't block writes or each other.
+
+On a read, a consumer that's keeping up asks for data that was just written, so
+it's usually **still in the page cache**. The docs say you'll see no read activity
+on the disks at all in that case. Kafka then uses `sendfile` to hand the data from
+the cache to the network socket without copying it through the application. (One
+exception: with SSL/TLS the data has to be encrypted in user space, so `sendfile`
+isn't used.)
+
+A consumer that's far behind, such as one replaying last week's data, reads from
+disk instead, which is slower and can push recent data out of the cache.
+
+## Is data really safe if it's only in the page cache?
+
+This surprises people. By default Kafka doesn't call `fsync` on every write.
+Flushing is left to the OS, and the flush settings default to effectively "never
+force it". The docs say plainly that Kafka doesn't want to require `fsync` on
+every write for its guarantees.
+
+Durability comes from **replication** instead. Each partition is copied to other
+brokers, and the docs say a committed message won't be lost as long as at least one
+in-sync replica is alive. This is a different trade-off from the database approach
+in my post on [how transactions and WAL work](/blog/how-database-transactions-work),
+where one machine flushes its log on commit. We'll cover replication in a later
+post.
+
+## Retention: deleting whole segments
+
+Kafka doesn't delete individual messages. By default it keeps data for 168 hours
+(`log.retention.hours`), with no size limit (`log.retention.bytes` is -1), and
+checks every five minutes. When a segment is old enough, **the whole segment is
+removed**, which is cheap: it's just deleting files. (The active segment isn't
+deleted until it rolls.)
+
+There's a second policy, **log compaction** (`cleanup.policy=compact`). Instead of
+deleting by age, Kafka keeps at least the latest value for each key, and a
+background process recopies old segments to drop the stale ones. It suits topics
+that represent "current state per key".
+
+## What to take away
+
+- A partition is an **ordered, append-only log**, stored as **segments**, and each
+  segment is a `.log` file plus two small index files.
+- Segment names are the **first offset** they contain.
+- Reads find the segment, use a **sparse index**, then scan a short distance.
+- Speed comes from **sequential I/O, the page cache and zero-copy** reads.
+- Durability comes from **replication**, not an `fsync` per message.
+- Retention works by **deleting whole segments**.
+
+If you run Kafka, one practical point follows: a lot of its performance depends on
+the page cache, so leave plenty of free memory for the OS and don't hand it all to
+the JVM.
+
+**References:** the Apache Kafka documentation, especially the
+[Design](https://kafka.apache.org/43/design/design/) and
+[Log implementation](https://kafka.apache.org/43/implementation/log/) pages and the
+[broker configuration](https://kafka.apache.org/43/configuration/broker-configs/)
+reference.
