@@ -48,6 +48,7 @@ export async function generateMetadata({ params }: PageProps<'/blog/[slug]'>): P
       description: post.excerpt,
       type: 'article',
       publishedTime: post.date,
+      modifiedTime: post.updated ?? post.date,
       url,
       siteName: 'TechWithSwag',
     },
@@ -89,7 +90,7 @@ export default async function BlogPostPage({ params }: PageProps<'/blog/[slug]'>
     headline: post.title,
     description: post.excerpt,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: post.updated ?? post.date,
     url: postUrl,
     mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
     image: `${postUrl}/opengraph-image`,
@@ -127,7 +128,14 @@ export default async function BlogPostPage({ params }: PageProps<'/blog/[slug]'>
                 </BootItem>
                 <BootItem>
                   <p className="mt-4 font-mono text-sm tabular-nums text-muted">
-                    <time dateTime={post.date}>{formatPostDate(post.date)}</time> · {post.readingTime}
+                    <time dateTime={post.date}>{formatPostDate(post.date)}</time>
+                    {post.updated && post.updated !== post.date && (
+                      <>
+                        {' '}
+                        · Updated <time dateTime={post.updated}>{formatPostDate(post.updated)}</time>
+                      </>
+                    )}{' '}
+                    · {post.readingTime}
                   </p>
                 </BootItem>
 

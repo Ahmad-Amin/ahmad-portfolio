@@ -9,6 +9,9 @@ const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 export interface PostFrontmatter {
   title: string;
   date: string;
+  // Set when a post is materially revised (e.g. a security story that develops).
+  // Feeds search engines' "last modified" signals and an "Updated" label on the post.
+  updated?: string;
   excerpt: string;
   tags?: string[];
   series?: string;
@@ -59,6 +62,7 @@ function readPost(slug: string): Post | null {
     slug,
     title: frontmatter.title,
     date: frontmatter.date,
+    updated: frontmatter.updated,
     excerpt: frontmatter.excerpt,
     tags: frontmatter.tags ?? [],
     series: frontmatter.series,
