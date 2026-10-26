@@ -66,10 +66,79 @@ export async function getChannelStats(channelId: string): Promise<ChannelStats |
   }
 }
 
+// A channel's uploads live in a playlist whose id is the channel id with "UC" swapped
+// for "UU". The Data API lists it for 1 quota unit per call.
+async function getVideosFromApi(channelId: string, limit: number): Promise<YoutubeVideo[] | null> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key || !channelId.startsWith("UC")) return null;
+
+  try {
+    const playlistId = `UU${channelId.slice(2)}`;
+    const listRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=${limit + 2}&key=${key}`,
+      { next: { revalidate: 3600 } },
+    );
+    if (!listRes.ok) return null;
+
+    const list = (await listRes.json()) as {
+      items?: {
+        snippet?: {
+          title?: string;
+          publishedAt?: string;
+          thumbnails?: Record<string, { url?: string }>;
+        };
+        contentDetails?: { videoId?: string; videoPublishedAt?: string };
+      }[];
+    };
+
+    // Private and deleted videos still show up in the playlist, with placeholder titles.
+    const items = (list.items ?? [])
+      .filter((item) => item.contentDetails?.videoId)
+      .filter((item) => !/^(private|deleted) video$/i.test(item.snippet?.title ?? ""))
+      .slice(0, limit);
+    if (items.length === 0) return [];
+
+    // View counts aren't in the playlist response, so ask for them in one more call.
+    const ids = items.map((item) => item.contentDetails!.videoId!).join(",");
+    const statsRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${key}`,
+      { next: { revalidate: 3600 } },
+    );
+    const views = new Map<string, number>();
+    if (statsRes.ok) {
+      const stats = (await statsRes.json()) as {
+        items?: { id: string; statistics?: { viewCount?: string } }[];
+      };
+      for (const entry of stats.items ?? []) views.set(entry.id, Number(entry.statistics?.viewCount ?? 0));
+    }
+
+    return items.map((item) => {
+      const id = item.contentDetails!.videoId!;
+      const thumbs = item.snippet?.thumbnails ?? {};
+      return {
+        id,
+        title: item.snippet?.title ?? "",
+        url: `https://www.youtube.com/watch?v=${id}`,
+        thumbnailUrl: (thumbs.medium ?? thumbs.high ?? thumbs.default)?.url ?? "",
+        publishedAt: item.contentDetails?.videoPublishedAt ?? item.snippet?.publishedAt ?? "",
+        views: views.get(id) ?? 0,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Tries the Data API first, then the public RSS feed. YouTube's feed has been known to
+// return 404 for stretches at a time, so it's the fallback, not the only source.
 export async function getLatestVideos(
   channelId: string,
   limit = 3,
 ): Promise<YoutubeVideo[] | null> {
+  return (await getVideosFromApi(channelId, limit)) ?? (await getVideosFromFeed(channelId, limit));
+}
+
+async function getVideosFromFeed(channelId: string, limit: number): Promise<YoutubeVideo[] | null> {
   try {
     const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
       next: { revalidate: 3600 },
