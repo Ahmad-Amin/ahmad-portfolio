@@ -1,0 +1,211 @@
+---
+title: "Sunday Tech Talk #4: PHP2Shell, agent sandboxes, the LiteLLM attack and Agent Skills"
+date: "2026-10-25"
+excerpt: "Episode four: the PHP2Shell vulnerabilities, Google's infrastructure for AI agents, how the LiteLLM supply-chain attack worked, and Anthropic donating the Agent Skills standard."
+tags: ["sunday-tech-talk", "ai", "ai-agents", "security"]
+series: "sunday-tech-talk"
+seriesOrder: 4
+---
+
+Welcome to episode four of **Sunday Tech Talk**, where I pick a few of the week's
+biggest developments in tech and look at why they matter to people who build
+software.
+
+This week's stories cover a language runtime, cloud infrastructure for AI agents, a
+poisoned dependency, and a new standard for agent workflows. The thread through all
+of them is **trust**: what you run, what you install, and what you let an agent do.
+
+## PHP2Shell: bugs in the runtime, not your code
+
+Two critical vulnerabilities in PHP itself, **CVE-2026-109618** and
+**CVE-2026-109619**, were disclosed on October 21. Both are memory-safety bugs in
+PHP's request handling, and Wiz researchers chained them into unauthenticated
+remote code execution. I wrote a full breakdown in
+[PHP2Shell explained](/blog/php2shell-php-vulnerability-explained), so here's the
+short version.
+
+PHP is a memory-managed language: you never allocate or free memory yourself. But
+the interpreter that runs your code is written in C, and C has all the classic
+memory problems. A bug there can't be fixed from your application. A
+well-written WordPress or Laravel site is exposed just by running an unpatched PHP.
+
+**What to do:** upgrade to PHP 8.5.12, 8.4.27, 8.3.36 or 8.2.35 (or a vendor-patched
+build) and restart your workers. One more thing since I wrote that post: a related
+bug, CVE-2026-115560, affects even those releases, but only under an unusual setup
+involving `session.serialize_handler` and session upload progress. The PHP team's
+interim advice is `session.upload_progress.enabled = 0`. Vendors also report
+exploitation attempts, which doesn't mean attacks are succeeding, but it does mean
+waiting is risky.
+
+**Official sources:** the PHP advisories for
+[CVE-2026-109618](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)
+and [CVE-2026-109619](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp),
+and PHP's [announcements](https://www.php.net/archive/2026.php).
+
+## Google Agent Compute Engine: a computer for every agent
+
+AI agents don't behave like web servers. A coding agent clones a repo, runs a
+command, sends the output to a model, **waits**, runs another command, waits for a
+human to approve something, and so on. Much of its life is spent waiting. Now
+imagine hosting a huge number of these, each needing its own filesystem and
+processes.
+
+Google announced **Agent Compute Engine** on October 22 as the answer. It's
+described as a compute service that gives every agent its own hardware-isolated
+sandbox. It already powers Gemini's agent for work tasks, and Google says it will be
+available in preview "in the coming months."
+
+Two ideas are worth knowing:
+
+- **MicroVM isolation.** Containers share the host's kernel. A microVM is a
+  lightweight virtual machine with its own guest kernel, which is a stronger
+  boundary when an agent might run untrusted code. Google says each agent session
+  gets its own microVM, with short-lived credentials and no secrets held inside it.
+- **Checkpoint and restore.** When an agent is waiting on a model or a human,
+  Google can pause its microVM and resume it from a snapshot, so idle agents
+  consume nothing on the host. It also uses copy-on-write memory sharing, so many
+  agents can share one OS template and only pay for the pages they change.
+
+Alongside it, Google released **Agent Substrate**, an open-source runtime for
+Kubernetes (on GKE) that you can use today. It lets you choose microVM or gVisor
+isolation. Google's own benchmark ran 200,000 agents with 500 activations per
+second and under 500 ms to suspend or resume, and claims up to 10x higher density
+than traditional compute. Those are Google's numbers, and the deep-dive post for
+Agent Compute Engine doesn't give figures for it.
+
+**Why it matters:** this is the third sandboxing story in a few weeks, after Google's
+Agent Sandbox and Microsoft's Execution Containers in
+[episode two](/blog/sunday-tech-talk-2). We moved from VMs to containers to
+serverless, and now to environments built for software that runs, pauses and resumes
+on its own.
+
+**Official sources:** [Introducing Agent Compute Engine](https://cloud.google.com/blog/topics/ai-infrastructure/introducing-agent-compute-engine-and-expanded-agent-governance)
+and the [technical deep dive](https://cloud.google.com/blog/topics/ai-infrastructure/agent-compute-engine-deep-dive/) (Google Cloud).
+
+## The LiteLLM attack: when the dependency is the weapon
+
+LiteLLM is a popular open-source library and proxy for calling many AI providers
+through one interface. On October 21, version **1.107.0** was published to PyPI, and to
+its Docker images, with malicious code in it. PyPI quarantined it about two hours
+later.
+
+The interesting part is how it got there. The official source tag **didn't contain
+the malicious files**. LiteLLM's root-cause post (October 23) says it went roughly
+like this:
+
+1. A config file containing a master key for an internal platform was committed to
+   a public repository in May. The key was flagged, but never revoked.
+2. On October 10, the attacker used it to obtain the GitHub token of an organization
+   owner.
+3. With that token they stole CI secrets, including other maintainers' tokens.
+4. On October 21, they redirected the release workflow to a lookalike fork,
+   overrode branch protection, and used another maintainer's token to approve the
+   production release.
+
+The package was built and published through the **official pipeline**, from the wrong
+source. LiteLLM also warns that some early assumptions in its updates turned out to be
+wrong, so go by the root-cause post.
+
+### Why it didn't need an import
+
+The payload used a feature of Python. When Python starts, it processes `.pth` files
+in `site-packages`, normally used to add folders to the import path. The docs say lines
+starting with `import` in a `.pth` file are **executed at startup**, whether or not
+your program uses that module. Microsoft's analysis shows the malicious wheel
+dropped a `cook.pth` with a single line, `import cook`.
+
+```text
+site-packages/
+  startup.pth        <- contains: import startup_helper
+  startup_helper.py  <- print("runs before your script")
+```
+
+So any Python process in that environment ran the collector, even if it never
+imported LiteLLM. Microsoft says it gathered cloud credentials, SSH and CI/CD
+config, AI-tool config, environment variables and more, encrypted them, and sent
+them to a lookalike domain. (Python 3.15 deprecates `import` lines in `.pth` files,
+though they still run for now.)
+
+### What to do
+
+- **Check if you were exposed:** did anything install `litellm==1.107.0`, or pull
+  the affected Docker tags, on October 21?
+- **Don't run `pip` or `python` first** in an affected environment, because that can
+  re-trigger the payload. Investigate from a clean system.
+- **Rebuild from scratch** instead of just uninstalling, and install a pinned safe
+  version, such as 1.106.2 or earlier.
+- **Rotate every credential** the machine could reach, and revoke sessions.
+- **Longer term:** pin dependencies with hashes, pin container images by digest,
+  restrict outbound network access, and treat CI runners as sensitive systems.
+
+The lesson: you trust a dependency's code, its maintainers, their credentials and
+its build pipeline, and any of them can fail.
+
+**Official sources:** LiteLLM's [incident report](https://docs.litellm.ai/blog/security-incident-oct-21-2026)
+and [attack chain](https://docs.litellm.ai/blog/security-incident-oct-21-2026-attack-chain),
+[Microsoft's analysis](https://www.microsoft.com/en-us/security/blog/2026/10/23/inside-the-litellm-1-107-0-supply-chain-compromise-credential-theft-through-python-startup-hooks/),
+and Python's [`site` module docs](https://docs.python.org/3/library/site.html).
+
+## Agent Skills: a shared format for agent workflows
+
+On October 22, Anthropic announced it is donating **Agent Skills** to the Agentic AI
+Foundation, which sits under the Linux Foundation. It's giving the name, logo, GitHub
+organization and domain, along with the standard itself. Anthropic says more than 70
+agent platforms, including ChatGPT, Cursor, GitHub Copilot and VS Code, already
+support it. The format isn't new. The change is that it now has neutral governance.
+
+A **skill** is a folder with a `SKILL.md` file that teaches an agent a specific task,
+optionally with `scripts/`, `references/` and `assets/`. The file starts with a
+`name` and a `description`:
+
+```markdown
+---
+name: code-review
+description: Reviews code changes for security, correctness and maintainability.
+  Use when asked to review a pull request.
+---
+
+1. Inspect the changed files.
+2. Check for security problems.
+3. Run the available tests.
+4. Report findings grouped by severity.
+```
+
+Skills use **progressive disclosure** so they don't flood the model's context. Per
+the spec, an agent loads only each skill's name and description at startup (around
+100 tokens), reads the full `SKILL.md` when the skill becomes relevant, and opens
+scripts and reference files only when needed.
+
+A common question is how this relates to **MCP**. MCP connects an agent to tools and
+data, such as GitHub. A skill carries the instructions, such as how your team
+reviews a pull request. They complement each other.
+
+Same trust question as the rest of this episode, though: a skill can include scripts
+and shape what an agent does. Review third-party skills before installing them, the
+way you'd review a dependency. A shared format also doesn't guarantee that every
+agent behaves the same way.
+
+**Official sources:** [Anthropic's announcement](https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation)
+and the [Agent Skills specification](https://agentskills.io/specification).
+
+## The bigger picture: trust, everywhere
+
+- **PHP2Shell:** can you trust the runtime under your code?
+- **Agent Compute Engine:** how do you contain software that acts on its own?
+- **LiteLLM:** can you trust what your dependency's pipeline ships?
+- **Agent Skills:** can you trust instructions an agent follows?
+
+The future of AI development isn't only more capable models. It's the infrastructure,
+security controls and open standards around them, and understanding those is becoming
+as important as knowing how to call an AI API.
+
+## Watch the episode
+
+In the full video I go deeper into each of these four stories and what they mean for
+developers.
+
+**YouTube:** [Watch Sunday Tech Talk #4](https://youtu.be/Q8s3Wvf1NLA)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
