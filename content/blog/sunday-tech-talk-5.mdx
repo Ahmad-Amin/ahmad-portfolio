@@ -1,0 +1,241 @@
+---
+title: "Sunday Tech Talk #5: FinScan AI, the Binance hack, Gemini 4 Carbon and a poisoned extension"
+date: "2026-11-01"
+excerpt: "Episode five: my expense tracker FinScan AI, Binance's $6.3 billion security incident, Google's cybersecurity-focused Gemini 4 Carbon, and a tampered Claude Code extension on Cursor's marketplace."
+tags: ["sunday-tech-talk", "ai", "security", "supply-chain"]
+series: "sunday-tech-talk"
+seriesOrder: 5
+---
+
+Welcome to episode five of **Sunday Tech Talk**. This week I have one thing I built,
+and three stories about security: a record crypto exchange incident, an AI model that
+can find and fix vulnerabilities, and a poisoned developer extension.
+
+The theme is simple: **as software gets more powerful and automated, the systems
+behind it matter more.** Let's start with something personal.
+
+## FinScan AI: making expense tracking less tedious
+
+Tracking expenses is easy to start and hard to keep up. You buy groceries, pay for
+fuel, order food, send money to someone, and by the end of the week some of it
+is forgotten, because every entry means opening an app and typing.
+
+I built **FinScan AI** to remove as much of that typing as possible. It's on Google
+Play and captures spending from two places you already have:
+
+- **Transaction notifications.** Banks tell you about every purchase, either by SMS or
+  through their own app's notifications. With your permission, FinScan AI reads both
+  kinds of alert and turns them into expense records without you opening the app.
+- **Receipt scanning.** Take a photo of a receipt and AI extracts the merchant,
+  amount, date and category. That helps for cash purchases, which don't generate a
+  bank alert.
+
+Around that it has multiple wallets, spending analytics, budgets with alerts before
+you overspend, multi-currency support and a one-time premium purchase instead of
+a subscription.
+
+Both methods have engineering limits worth being honest about. Banks word their
+messages differently, and reading SMS and app notifications depends on the
+permissions a user grants (and on how Android behaves on their device). A
+receipt can be blurry, laid out strangely, or missing a field, and the app has to tell
+the final total from taxes and individual line items. AI helps with that variety,
+but extracted data should still be checked, so you can review every transaction.
+
+The lesson I keep coming back to: **good software doesn't always need a new
+behavior. Sometimes it just makes an existing one easier.**
+
+**Try it:** [FinScan AI on Google Play](https://play.google.com/store/apps/details?id=com.anonymous.aiexpensetracker),
+or read [how it's built](/case-studies/ai-expense-tracker).
+
+## Binance's $6.3 billion incident: what we know so far
+
+Binance reported a major security incident involving unauthorized withdrawals,
+announced on October 30. These are the figures from Binance's own updates, and its
+full technical report isn't out yet:
+
+- The estimated loss is about **$6.3 billion** in tokens.
+- Binance says it will absorb the loss, not its users, using its SAFU emergency fund
+  and company funds. It says it has set aside more than $6.34 billion.
+- About **$3 billion** has been frozen on-chain.
+- Withdrawals were paused, then restarted in phases on November 1. Coverage differs on
+  how much of the loss had been replaced at that point (Binance says 90%, Reuters
+  reports 95%).
+
+### How did it happen?
+
+Binance's first update said the incident **may** involve a compromised laptop
+belonging to a DevOps engineer, which could have given attackers access to a service
+container to submit unauthorized withdrawals. A later update said further investigation
+had uncovered **additional points of breach**, and that the full attack sequence is
+still being established. Both updates say Binance found **no evidence that wallet
+private keys leaked.**
+
+That detail is worth pausing on.
+
+### Stealing keys vs controlling the signing system
+
+Cryptocurrency moves when a transaction is signed with a private key. There are two
+very different ways an attacker can cause a theft:
+
+1. **Steal the private key.** They can sign transactions themselves.
+2. **Compromise a system that's already allowed to ask for signatures.** They never
+   see the key, but they can get fraudulent transactions signed.
+
+Think of a simplified withdrawal flow: the API authenticates the customer, a risk
+engine checks limits and suspicious activity, a signing service signs approved
+requests, and the signed transaction is broadcast. If an attacker controls a trusted
+component in that chain, protecting the key alone isn't enough. Binance hasn't said
+that's what happened here, which is exactly why the post-mortem matters, but it's
+the lesson to take from the reported shape of the incident.
+
+### What engineers can take from this
+
+- **Least privilege:** laptops, service containers and accounts should hold only the
+  access they need.
+- **Authorization isn't implied by access:** a service being able to request a
+  signature shouldn't mean every request is valid.
+- **Independent controls:** limits, extra approvals and monitoring for large or
+  unusual transfers.
+- **Isolation:** compromising one developer machine shouldn't give a path into
+  production systems that move money.
+
+This applies well beyond crypto, to payments, banking and any system with a trusted
+approval path. **You can have excellent cryptography and still fail if the
+infrastructure around it is compromised.**
+
+**Official sources:** Binance's [incident update](https://www.binance.com/en/support/announcement/detail/c5a8729a97ac486d963784d96c5642d7)
+and [October 30 follow-up](https://www.binance.com/en/support/announcement/detail/d3306d9dca5243548c813b605e1d1751).
+
+## Gemini 4 Carbon: an AI model that finds and fixes vulnerabilities
+
+On October 28, Google announced **Gemini 4 Carbon**, which it calls its strongest
+model, with state-of-the-art cybersecurity and long-horizon abilities. It builds on
+the model I covered in [episode one](/blog/sunday-tech-talk-1), Gemini 4 Argon.
+
+Google reported three cybersecurity results:
+
+| Benchmark | Google-reported score | What it tests |
+|---|---:|---|
+| SEC-bench Pro | 88.2% | Finding real vulnerabilities |
+| ExploitGym | 54.8% | Validating that a flaw is exploitable |
+| CWE-bench | 71.0% | Patching the root cause |
+
+These are Google's own numbers, on specific benchmarks, evaluated without
+guardrails. They show the capability, not how it performs on your codebase.
+
+What's interesting is the combination. Traditional scanners flag suspicious patterns.
+An agent can, in principle, go further: trace how input reaches a vulnerable line, check
+whether the path is actually reachable, validate the issue in a safe test
+environment, propose a fix and write a regression test. Google also says Carbon has
+worked through problems for days internally. That's an internal claim, not a guarantee
+for every production setting.
+
+### Why access is limited
+
+A model that helps defenders find vulnerabilities could help attackers too. Google
+says it's starting with a subset of cyber defenders, then adding trusted partners
+through its Fairwind program, before a wider release, with no date given. It also says
+it's taking part in the US government's voluntary pre-release testing.
+
+Is restricted access the right call? Broad access could help smaller organizations,
+and restricted access lowers some misuse, but it also limits who benefits. It's a hard
+trade-off, and this won't be the last model to raise it.
+
+For developers, the opportunity isn't just more code, it's better, more secure code.
+But AI-generated patches can miss the root cause or add regressions, so tests, review
+and human approval still matter. **The goal is faster, more reliable security
+engineering, not blind trust in generated fixes.**
+
+**Official source:** [Introducing Gemini 4 Carbon](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-carbon/) (Google).
+
+## A tampered Claude Code extension on Cursor's marketplace
+
+The last story hits the tools developers use. On October 29, Cursor disclosed that
+tampered versions of the Claude Code extension, **2.1.312 and 2.1.313** for macOS and
+Windows, had been available in **Cursor's extension marketplace** for roughly half a
+day. Cursor estimated that at most 5,000 users were affected.
+
+Anthropic confirmed to Microsoft that its systems weren't compromised and that it
+didn't build the tampered package. Microsoft found no evidence it reached the Visual
+Studio Marketplace or npm. This was a marketplace distribution problem, not a breach
+of Anthropic. Neither company has said how the attacker got into the marketplace.
+
+### Why extensions are risky
+
+An IDE extension runs code on your machine, often with access to your files,
+processes, credentials and network. A developer laptop typically holds GitHub access,
+SSH keys, cloud sessions, `.env` files and routes into production, so it's an
+attractive target.
+
+### What the tampered extension did
+
+According to Cursor and Microsoft's analysis:
+
+- **It collected host details,** including hostname, username, OS and the global Git
+  email, and listed the *names* of environment variables that look like secrets
+  (not their values).
+- **It tried to add an attacker's SSH key** (labelled `svc-telemetry`) to the user's
+  `authorized_keys` file, which lists the keys allowed to log in over SSH.
+- **It tried to open a reverse SSH tunnel.** Normally you connect out from your
+  machine to a server. A reverse tunnel makes your machine connect *out* to the
+  attacker's server and expose your local SSH port back through that connection,
+  which is a handy admin technique and a well-known way to create a hidden way in.
+- **It set up persistence** with a macOS LaunchAgent, a Windows scheduled task or, on
+  Linux, a cron job, so it would run again after a restart. Microsoft notes the names
+  were chosen to look like legitimate monitoring components.
+
+### Did it work?
+
+Partly. Cursor says the step that enables SSH on the machine needs admin rights the
+extension usually lacks, so on most machines the attacker probably couldn't log in.
+But Cursor also says the extension **did** add the attacker's key, install
+persistence and send host details to the attacker's server.
+
+### What to do if you installed it
+
+- **Check for the `svc-telemetry` key** in `authorized_keys` (Cursor and Microsoft
+  published exact commands).
+- **Uninstalling isn't enough,** because the payload leaves behind its own scripts and
+  startup entries. If you find signs, isolate the machine and consider rebuilding it.
+- **Rotate credentials and revoke sessions** reachable from that machine, working
+  from a clean one.
+- **Longer term:** limit extensions to approved publishers and consider a short
+  waiting period before installing newly published versions, as Microsoft suggests.
+
+Together with the LiteLLM attack in [episode four](/blog/sunday-tech-talk-4), it's
+the same lesson: **the channels you install software from are security boundaries
+too.**
+
+**Official sources:** Cursor's [security notice](https://cursor.com/blog/claude-code-extension-security-notice)
+and [Microsoft's technical analysis](https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/).
+
+## The bigger picture
+
+- **FinScan AI:** automation makes everyday software more useful.
+- **Binance:** secure the authorization path, not just the keys.
+- **Gemini 4 Carbon:** AI is getting good at finding and fixing vulnerabilities, and
+  access has to be handled carefully.
+- **The Cursor extension:** the tools developers trust are targets.
+
+**Building powerful software is only one part of engineering. Making it secure,
+reliable and trustworthy matters just as much**, and more so as AI joins the
+development workflow.
+
+## Watch the episode
+
+I go deeper into all four topics in the full video.
+
+**YouTube:** [Watch Sunday Tech Talk #5](https://youtu.be/ADpoY3iRlwU)
+
+**Chapters:**
+
+- 00:00 Introduction
+- 01:09 Introducing FinScan AI
+- 05:42 The Binance security incident
+- 11:49 Google Gemini 4 Carbon
+- 14:51 The malicious Claude Code extension in Cursor
+- 17:47 Final thoughts
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
