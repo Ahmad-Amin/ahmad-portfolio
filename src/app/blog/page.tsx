@@ -33,13 +33,22 @@ export async function generateMetadata({
     [...getAllTags().map((t) => t.tag)],
   );
 
+  // Page-level `alternates` replaces the layout's, so the RSS link is repeated here.
+  const rss = { "application/rss+xml": feedPath };
+
   if (!activeTag) {
-    return { title: "Blog", description: DEFAULT_DESCRIPTION };
+    return {
+      title: "Blog",
+      description: DEFAULT_DESCRIPTION,
+      alternates: { canonical: "/blog", types: rss },
+    };
   }
 
   return {
     title: `Posts tagged “${activeTag}”`,
     description: `Posts tagged “${activeTag}”. ${DEFAULT_DESCRIPTION}`,
+    // Each tag view is its own page, so it canonicalizes to itself, not to /blog.
+    alternates: { canonical: `/blog?tag=${encodeURIComponent(activeTag)}`, types: rss },
   };
 }
 
