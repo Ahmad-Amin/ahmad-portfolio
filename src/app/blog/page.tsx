@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import clsx from "clsx";
-import { ArrowUpRight, Rss } from "lucide-react";
+import { ArrowUpRight, BookOpen, Rss } from "lucide-react";
 import { getAllPosts, getAllSeries, getAllTags, formatPostDate } from "@/lib/blog";
 import { series } from "@/data/series";
 import { feedPath } from "@/lib/site";
@@ -85,10 +85,12 @@ const VISIBLE_TOPICS = 10;
 function FilterChip({
   href,
   active,
+  count,
   children,
 }: {
   href: string;
   active: boolean;
+  count: number;
   children: React.ReactNode;
 }) {
   return (
@@ -96,21 +98,35 @@ function FilterChip({
       href={href}
       aria-current={active ? "true" : undefined}
       className={clsx(
-        "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs transition-colors",
         active
-          ? "bg-accent text-accent-foreground"
-          : "bg-accent/10 text-accent hover:bg-accent/20",
+          ? "border-accent bg-accent text-accent-foreground"
+          : "border-border text-muted hover:border-accent/40 hover:text-accent",
       )}
     >
-      {children}
+      <span>
+        <span className="opacity-50">#</span>
+        {children}
+      </span>
+      <span className="tabular-nums opacity-60">{count}</span>
     </Link>
   );
 }
 
-function FilterHeading({ label, clearHref }: { label: string; clearHref?: string }) {
+function FilterHeading({
+  id,
+  label,
+  clearHref,
+}: {
+  id: string;
+  label: string;
+  clearHref?: string;
+}) {
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">{label}</h2>
+      <h2 id={id} className="text-xs font-semibold tracking-wide text-muted uppercase">
+        {label}
+      </h2>
       {clearHref && (
         <Link href={clearHref} className="text-xs font-medium text-accent hover:underline">
           Clear
@@ -145,41 +161,73 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
   const hiddenTopics = topicTags.slice(VISIBLE_TOPICS);
   const hiddenHasActive = hiddenTopics.some(({ tag }) => tag === activeTag);
 
+  const shortDate = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+
   const filterPanel = (
-    <Panel as="div" shadow="subtle" className="p-5 sm:p-5">
+    <div className="space-y-8">
       {allSeries.length > 0 && (
-        <div>
+        <section aria-labelledby="filter-series">
           <FilterHeading
+            id="filter-series"
             label="Series"
             clearHref={activeSeries ? blogHref({ tag: activeTag }) : undefined}
           />
-          <ul className="mt-3 flex list-none flex-col gap-1">
+          <ul className="mt-3 flex list-none flex-col gap-2">
             {allSeries.map((entry) => {
               const active = entry.slug === activeSeries;
+              const latest = entry.posts.map((post) => post.date).sort().at(-1);
               return (
                 <li key={entry.slug}>
                   <Link
                     href={blogHref({ series: entry.slug, tag: activeTag })}
                     aria-current={active ? "true" : undefined}
                     className={clsx(
-                      "flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                      "group flex items-center gap-3 rounded-2xl border p-3 transition-colors",
                       active
-                        ? "bg-accent/10 font-semibold text-accent"
-                        : "text-foreground hover:bg-accent/5 hover:text-accent",
+                        ? "border-accent/60 bg-accent/10"
+                        : "border-border bg-surface hover:border-accent/40",
                     )}
                   >
-                    <span>{entry.title}</span>
-                    <span className="text-xs tabular-nums text-muted">{entry.posts.length}</span>
+                    <span
+                      className={clsx(
+                        "flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        active
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-accent/10 text-accent group-hover:bg-accent/15",
+                      )}
+                    >
+                      <BookOpen className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span
+                        className={clsx(
+                          "block truncate text-sm font-semibold",
+                          active ? "text-accent" : "text-foreground",
+                        )}
+                      >
+                        {entry.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {entry.posts.length} {entry.posts.length === 1 ? "part" : "parts"}
+                        {latest && ` · latest ${shortDate(latest)}`}
+                      </span>
+                    </span>
                   </Link>
                 </li>
               );
             })}
           </ul>
-        </div>
+        </section>
       )}
 
-      <div className={clsx(allSeries.length > 0 && "mt-6 border-t border-border pt-5")}>
+      <section aria-labelledby="filter-topics">
         <FilterHeading
+          id="filter-topics"
           label="Topics"
           clearHref={activeTag ? blogHref({ series: activeSeries }) : undefined}
         />
@@ -189,32 +237,34 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
               key={tag}
               href={blogHref({ series: activeSeries, tag })}
               active={tag === activeTag}
+              count={count}
             >
-              {tag} <span className="tabular-nums opacity-70">{count}</span>
+              {tag}
             </FilterChip>
           ))}
         </div>
         {hiddenTopics.length > 0 && (
-          <details className="group mt-2" open={hiddenHasActive}>
-            <summary className="cursor-pointer list-none text-xs font-medium text-accent hover:underline [&::-webkit-details-marker]:hidden">
-              <span className="group-open:hidden">Show all topics ({topicTags.length})</span>
+          <details className="group mt-3" open={hiddenHasActive}>
+            <summary className="cursor-pointer list-none text-xs font-medium text-muted transition-colors hover:text-accent [&::-webkit-details-marker]:hidden">
+              <span className="group-open:hidden">+ {hiddenTopics.length} more topics</span>
               <span className="hidden group-open:inline">Show fewer</span>
             </summary>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {hiddenTopics.map(({ tag, count }) => (
                 <FilterChip
                   key={tag}
                   href={blogHref({ series: activeSeries, tag })}
                   active={tag === activeTag}
+                  count={count}
                 >
-                  {tag} <span className="tabular-nums opacity-70">{count}</span>
+                  {tag}
                 </FilterChip>
               ))}
             </div>
           </details>
         )}
-      </div>
-    </Panel>
+      </section>
+    </div>
   );
 
   return (
