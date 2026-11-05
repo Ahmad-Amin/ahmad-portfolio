@@ -84,7 +84,7 @@ const markdownComponents = {
   // Images in a reply could only be a tracking pixel or a broken icon, so render nothing.
   img: () => null,
   pre: (props: ComponentPropsWithoutRef<'pre'>) => (
-    <pre className="mt-2 overflow-x-auto rounded-xl bg-foreground/10 p-3 font-mono text-[0.85em] first:mt-0" {...props} />
+    <pre className="mt-2 overflow-x-auto rounded-md bg-foreground/10 p-3 font-mono text-[0.85em] first:mt-0" {...props} />
   ),
   code: ({ className, ...props }: ComponentPropsWithoutRef<'code'>) =>
     /language-/.test(className ?? '') ? (
@@ -197,7 +197,7 @@ function errorStatus(error: Error | undefined): number | undefined {
 // to reach him. "Try again" is left out for a rate limit, where retrying won't help.
 function ChatErrorNotice({ rateLimited, onRetry }: { rateLimited: boolean; onRetry: () => void }) {
   return (
-    <div role="alert" className="max-w-[85%] rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-3 text-sm text-foreground">
+    <div role="alert" className="max-w-[85%] rounded-lg rounded-bl-sm bg-foreground/6 px-3.5 py-3 text-sm text-foreground">
       <p className="leading-relaxed">
         {rateLimited
           ? "You've sent a lot of messages in the last hour, so I need to pause for a bit. Please try again later."
@@ -236,7 +236,7 @@ function ChatErrorNotice({ rateLimited, onRetry }: { rateLimited: boolean; onRet
 
 function TypingIndicator() {
   return (
-    <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-3">
+    <div className="flex items-center gap-1 rounded-lg rounded-bl-sm bg-foreground/6 px-3.5 py-3">
       {[0, 1, 2].map((i) => (
         <span key={i} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${i * 120}ms` }} />
       ))}
@@ -411,7 +411,7 @@ export function ChatWidget({ latestPosts, series, caseStudyPaths, knownPaths }: 
               transition={{ duration: 0.2, ease: EASE }}
               role="dialog"
               aria-label={`Chat with ${firstName}'s AI assistant`}
-              className="mb-3 flex h-128 max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm origin-bottom-right flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+              className="mb-3 flex h-128 max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm origin-bottom-right flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
             >
               <div className="flex items-center gap-3 border-b border-border px-5 py-4">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
@@ -437,11 +437,11 @@ export function ChatWidget({ latestPosts, series, caseStudyPaths, knownPaths }: 
                   {messages.map((message) => (
                     <div key={message.id} className={clsx('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
                       {message.role === 'user' ? (
-                        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap text-accent-foreground">
+                        <p className="max-w-[85%] rounded-lg rounded-br-sm bg-accent px-3.5 py-2 text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap text-accent-foreground">
                           {messageText(message.parts)}
                         </p>
                       ) : (
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-foreground/6 px-3.5 py-2 text-sm wrap-anywhere text-foreground">
+                        <div className="max-w-[85%] rounded-lg rounded-bl-sm bg-foreground/6 px-3.5 py-2 text-sm wrap-anywhere text-foreground">
                           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownWithLinks}>
                             {messageText(message.parts)}
                           </ReactMarkdown>
@@ -527,7 +527,7 @@ export function ChatWidget({ latestPosts, series, caseStudyPaths, knownPaths }: 
               <button
                 type="button"
                 onClick={() => toggleOpen('teaser')}
-                className="flex w-full items-center gap-3 rounded-3xl border border-border bg-surface py-3 pr-10 pl-3 text-left shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-colors hover:border-accent/40"
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface py-3 pr-10 pl-3 text-left shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-colors hover:border-accent/40"
               >
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
                   <Sparkles className="size-4" />

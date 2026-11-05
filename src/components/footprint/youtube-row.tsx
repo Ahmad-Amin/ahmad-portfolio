@@ -75,7 +75,7 @@ export async function YoutubeRow() {
           {videos.map((video) => (
             <li key={video.id}>
               <a href={video.url} target="_blank" rel="noopener noreferrer" className="group block">
-                <div className="aspect-video w-full overflow-hidden rounded-2xl">
+                <div className="aspect-video w-full overflow-hidden rounded-lg">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={video.thumbnailUrl}

@@ -3,7 +3,7 @@ import type { TocHeading } from "@/lib/toc";
 
 export function MobileTableOfContents({ headings }: { headings: TocHeading[] }) {
   return (
-    <details className="group mt-8 rounded-2xl border border-border bg-surface px-5 py-3 lg:hidden">
+    <details className="group mt-8 rounded-lg border border-border bg-surface px-5 py-3 lg:hidden">
       <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
         On this page
         <ChevronDown className="size-4 text-muted transition-transform group-open:rotate-180" />

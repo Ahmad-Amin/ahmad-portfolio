@@ -105,6 +105,16 @@ function buildItems(
     },
   }));
 
+  navigate.push({
+    id: "nav-about",
+    label: "About",
+    hint: "Page",
+    group: "Navigate",
+    keywords: "bio author ahmad amin who",
+    icon: ArrowRight,
+    action: { type: "route", href: "/about" },
+  });
+
   const caseStudyItems: Item[] = caseStudies.map((study) => ({
     id: `case-study-${study.slug}`,
     label: `${study.title} case study`,
@@ -365,7 +375,7 @@ export function CommandPalette({ posts, seriesList, caseStudies }: CommandPalett
             exit={{ opacity: 0, y: -12, scale: 0.98 }}
             transition={{ duration: 0.18, ease: EASE }}
             onMouseDown={(event) => event.stopPropagation()}
-            className="w-full max-w-xl overflow-hidden rounded-3xl border border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.16)]"
+            className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.16)]"
           >
             <div className="flex items-center gap-3 border-b border-border px-5">
               <Search className="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -426,7 +436,7 @@ export function CommandPalette({ posts, seriesList, caseStudies }: CommandPalett
                           onMouseMove={() => setActive(index)}
                           onClick={() => run(item)}
                           className={clsx(
-                            "flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm",
+                            "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-sm",
                             selected ? "bg-accent/10 text-accent" : "text-foreground",
                           )}
                         >

@@ -11,7 +11,7 @@ export function NotFoundTerminal() {
   return (
     <div
       aria-hidden="true"
-      className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)]"
+      className="mx-auto w-full max-w-xl overflow-hidden rounded-lg border border-border bg-surface text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)]"
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <span className="size-3 rounded-full bg-red-500/80" />

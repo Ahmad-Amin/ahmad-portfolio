@@ -35,6 +35,8 @@ const jsonLd = {
       alternateName: profile.brand,
       jobTitle: profile.role,
       url: siteUrl,
+      mainEntityOfPage: `${siteUrl}/about`,
+      image: `${siteUrl}/about/ahmad-amin.jpg`,
       sameAs: socials.map((social) => social.url),
     },
   ],

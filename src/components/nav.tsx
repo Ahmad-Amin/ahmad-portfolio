@@ -150,14 +150,14 @@ export function Nav() {
         <nav
           id="mobile-nav"
           aria-label="Mobile"
-          className="w-full max-w-xs rounded-3xl border border-border bg-surface/95 p-2 shadow-xl backdrop-blur-md md:hidden"
+          className="w-full max-w-xs rounded-xl border border-border bg-surface/95 p-2 shadow-xl backdrop-blur-md md:hidden"
         >
           <ul className="flex flex-col">
             {navLinks.map((link) => {
               const href = getHref(link, isHome);
               const active = isLinkActive(link, isHome, pathname, activeAnchorId);
               const className = clsx(
-                "block rounded-2xl px-4 py-3 text-sm",
+                "block rounded-lg px-4 py-3 text-sm",
                 active ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground",
               );
               const ariaCurrent = active ? "true" : undefined;

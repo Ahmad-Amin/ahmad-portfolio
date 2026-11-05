@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Rss } from "lucide-react";
 import { profile } from "@/data/profile";
 import { SocialLinks } from "@/components/social-links";
@@ -11,6 +12,12 @@ export function Footer() {
           © {new Date().getFullYear()} {profile.brand}. All rights reserved.
         </p>
         <div className="flex items-center gap-3">
+          <Link
+            href="/about"
+            className="mr-1 text-sm font-medium text-muted transition-colors hover:text-accent"
+          >
+            About
+          </Link>
           <SocialLinks />
           <a
             href={feedPath}

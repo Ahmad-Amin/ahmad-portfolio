@@ -18,7 +18,7 @@ export function SeriesBox({ seriesSlug, posts, currentSlug, upcoming = [] }: Ser
   if (!info || position === 0) return null;
 
   return (
-    <details className="group mt-6 rounded-2xl border border-border bg-surface px-5 py-4">
+    <details className="group mt-6 rounded-lg border border-border bg-surface px-5 py-4">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-xs font-semibold tracking-wide text-accent uppercase">
@@ -38,7 +38,7 @@ export function SeriesBox({ seriesSlug, posts, currentSlug, upcoming = [] }: Ser
                 href={`/blog/${post.slug}`}
                 aria-current={current ? "page" : undefined}
                 className={clsx(
-                  "flex gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                  "flex gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                   current
                     ? "bg-accent/10 font-semibold text-accent"
                     : "text-muted hover:text-foreground",
@@ -53,7 +53,7 @@ export function SeriesBox({ seriesSlug, posts, currentSlug, upcoming = [] }: Ser
         {upcoming.map((part, index) => (
           <li
             key={part.order}
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted/70"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted/70"
           >
             <span className="tabular-nums">{posts.length + index + 1}.</span>
             <span className="min-w-0 flex-1">{part.title}</span>

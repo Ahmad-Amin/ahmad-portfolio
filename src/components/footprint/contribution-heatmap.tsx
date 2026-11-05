@@ -93,7 +93,7 @@ function HeatmapTooltip({ hover }: { hover: HoveredDay }) {
         animate={{ opacity: 1, scale: 1, x, y }}
         exit={{ opacity: 0, scale: 0.98, transition: fadeOut }}
         transition={{ x: GLIDE, y: GLIDE, opacity: fadeIn, scale: { duration: 0.32, ease: EASE } }}
-        className="pointer-events-none absolute top-0 left-0 z-20 flex flex-col justify-center rounded-xl bg-foreground px-3 text-center shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
+        className="pointer-events-none absolute top-0 left-0 z-20 flex flex-col justify-center rounded-md bg-foreground px-3 text-center shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
         style={{ width: TOOLTIP_WIDTH, height: TOOLTIP_HEIGHT, transformOrigin: "50% 100%" }}
       >
         <p className="text-xs font-semibold text-background">

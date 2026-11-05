@@ -24,7 +24,7 @@ export function FiltersDisclosure({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-foreground lg:hidden"
+        className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm font-medium text-foreground lg:hidden"
       >
         <span className="inline-flex items-center gap-2">
           <SlidersHorizontal className="size-4 text-muted" />

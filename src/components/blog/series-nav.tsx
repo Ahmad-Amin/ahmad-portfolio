@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { PostMeta } from "@/lib/blog";
 
 const cardClass =
-  "group block h-full rounded-2xl border border-border bg-background/60 p-4 transition-colors hover:border-accent/50";
+  "group block h-full rounded-lg border border-border bg-background/60 p-4 transition-colors hover:border-accent/50";
 
 interface SeriesNavProps {
   seriesSlug: string;
@@ -32,7 +32,7 @@ export function SeriesNav({
   return (
     <nav
       aria-label={`${seriesTitle} series`}
-      className="mt-8 rounded-3xl border border-accent/30 bg-accent/5 p-4 sm:p-5"
+      className="mt-8 rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5"
     >
       <div className="flex items-baseline justify-between gap-4">
         <Link

@@ -101,7 +101,7 @@ export const mdxComponents: MDXComponents = {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       alt={alt}
-      className="mt-6 w-full rounded-2xl border border-border"
+      className="mt-6 w-full rounded-lg border border-border"
       loading="lazy"
       {...props}
     />
@@ -109,7 +109,7 @@ export const mdxComponents: MDXComponents = {
   // GFM tables (remark-gfm) render as plain unstyled HTML by default, so give
   // them the site's own borders/surface tokens instead.
   table: (props) => (
-    <div className="mt-6 overflow-x-auto rounded-2xl border border-border">
+    <div className="mt-6 overflow-x-auto rounded-lg border border-border">
       <table className="w-full border-collapse text-left text-sm" {...props} />
     </div>
   ),

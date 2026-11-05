@@ -25,7 +25,7 @@ export function Panel({
   return (
     <Tag
       className={clsx(
-        "rounded-3xl border border-border bg-surface p-6 sm:p-8",
+        "rounded-xl border border-border bg-surface p-6 sm:p-8",
         shadowClasses[shadow],
         className,
       )}

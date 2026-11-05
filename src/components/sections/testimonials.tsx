@@ -353,11 +353,11 @@ export function Testimonials() {
             <>
               <div
                 aria-hidden="true"
-                className="absolute inset-x-6 top-3 -bottom-3 rounded-3xl bg-surface/60"
+                className="absolute inset-x-6 top-3 -bottom-3 rounded-xl bg-surface/60"
               />
               <div
                 aria-hidden="true"
-                className="absolute inset-x-12 top-6 -bottom-6 rounded-3xl bg-surface/30"
+                className="absolute inset-x-12 top-6 -bottom-6 rounded-xl bg-surface/30"
               />
             </>
           )}

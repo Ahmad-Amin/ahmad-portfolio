@@ -65,7 +65,7 @@ export function StepAnimation({ title, stages, note }: StepAnimationProps) {
   }
 
   return (
-    <figure data-step-animation className="mt-8 rounded-3xl border border-border bg-surface p-4 sm:p-6">
+    <figure data-step-animation className="mt-8 rounded-xl border border-border bg-surface p-4 sm:p-6">
       <p className="overflow-x-auto font-mono text-sm whitespace-nowrap text-foreground">
         <span className="text-accent">▸ </span>
         {title}
@@ -90,7 +90,7 @@ export function StepAnimation({ title, stages, note }: StepAnimationProps) {
                   onClick={() => jump(i)}
                   aria-current={active ? "step" : undefined}
                   className={clsx(
-                    "flex h-full w-full flex-col items-center gap-0.5 rounded-xl border px-1 py-2.5 text-center transition-colors",
+                    "flex h-full w-full flex-col items-center gap-0.5 rounded-md border px-1 py-2.5 text-center transition-colors",
                     active && "border-accent bg-accent/10 text-accent",
                     !active && i < index && "border-accent/30 text-foreground",
                     !active && i >= index && "border-border text-muted hover:text-foreground",
@@ -118,7 +118,7 @@ export function StepAnimation({ title, stages, note }: StepAnimationProps) {
               Step {index + 1} of {stages.length} · {stage.flow}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted">{stage.description}</p>
-            <pre className="mt-3 overflow-x-auto rounded-xl bg-background p-3 font-mono text-xs leading-relaxed whitespace-pre text-foreground">
+            <pre className="mt-3 overflow-x-auto rounded-md bg-background p-3 font-mono text-xs leading-relaxed whitespace-pre text-foreground">
               {stage.snippet}
             </pre>
           </motion.div>

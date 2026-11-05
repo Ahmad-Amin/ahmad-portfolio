@@ -99,7 +99,7 @@ export function Modal({
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.2, ease: EASE }}
             onClick={(event) => event.stopPropagation()}
-            className={`relative max-h-[85vh] w-full overflow-y-auto rounded-3xl border border-border bg-surface p-6 shadow-[0_8px_30px_rgb(0,0,0,0.16)] sm:p-8 ${maxWidthClassName}`}
+            className={`relative max-h-[85vh] w-full overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-[0_8px_30px_rgb(0,0,0,0.16)] sm:p-8 ${maxWidthClassName}`}
           >
             <button
               type="button"

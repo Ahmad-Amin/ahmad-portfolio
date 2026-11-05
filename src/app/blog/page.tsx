@@ -187,7 +187,7 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
                     href={blogHref({ series: entry.slug, tag: activeTag })}
                     aria-current={active ? "true" : undefined}
                     className={clsx(
-                      "group flex items-center gap-3 rounded-2xl border p-3 transition-colors",
+                      "group flex items-center gap-3 rounded-lg border p-3 transition-colors",
                       active
                         ? "border-accent/60 bg-accent/10"
                         : "border-border bg-surface hover:border-accent/40",
@@ -195,7 +195,7 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
                   >
                     <span
                       className={clsx(
-                        "flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        "flex size-9 shrink-0 items-center justify-center rounded-md transition-colors",
                         active
                           ? "bg-accent text-accent-foreground"
                           : "bg-accent/10 text-accent group-hover:bg-accent/15",

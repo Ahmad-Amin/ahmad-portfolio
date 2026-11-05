@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { PostMeta } from "@/lib/blog";
 
 const cardClass =
-  "group block h-full rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent/40";
+  "group block h-full rounded-lg border border-border bg-surface p-5 transition-colors hover:border-accent/40";
 
 // Older on the left, newer on the right, the same direction as the series block
 // above it and as turning the pages of a book.

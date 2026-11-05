@@ -50,7 +50,7 @@ function ProjectThumbnail({ project }: { project: LiveProject }) {
 
   if (project.cover) {
     return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-background transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-background transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={project.cover} alt="" className="size-full object-cover transition-opacity group-hover:opacity-80" />
         <LiveBadge />
@@ -59,8 +59,8 @@ function ProjectThumbnail({ project }: { project: LiveProject }) {
   }
 
   return (
-    <div className="relative flex aspect-video w-full items-center justify-center rounded-2xl bg-linear-to-br from-accent/15 via-accent/5 to-transparent transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-surface shadow-[0_8px_24px_rgb(0,0,0,0.1)] transition-opacity group-hover:opacity-80">
+    <div className="relative flex aspect-video w-full items-center justify-center rounded-lg bg-linear-to-br from-accent/15 via-accent/5 to-transparent transition-shadow group-hover:shadow-[0_8px_24px_rgb(0,0,0,0.1)]">
+      <div className="flex size-14 items-center justify-center rounded-lg bg-surface shadow-[0_8px_24px_rgb(0,0,0,0.1)] transition-opacity group-hover:opacity-80">
         <Icon className="size-6 text-accent" />
       </div>
       <LiveBadge />
@@ -104,7 +104,7 @@ function ImageCarousel({ project }: { project: LiveProject }) {
 
   return (
     <div>
-      <div className={`relative ${PLATFORM_ASPECT[project.platform]} ${containerWidth} overflow-hidden rounded-2xl bg-background`}>
+      <div className={`relative ${PLATFORM_ASPECT[project.platform]} ${containerWidth} overflow-hidden rounded-lg bg-background`}>
         <button type="button" onClick={() => setLightboxOpen(true)} aria-label="Enlarge image" className="block size-full cursor-zoom-in">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={images[index]} alt="" className="size-full object-cover" />
@@ -143,7 +143,7 @@ function ImageCarousel({ project }: { project: LiveProject }) {
       >
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[index]} alt="" className="max-h-[75vh] w-full rounded-xl object-contain" />
+          <img src={images[index]} alt="" className="max-h-[75vh] w-full rounded-md object-contain" />
 
           {images.length > 1 && (
             <>
@@ -205,7 +205,7 @@ export function LiveProjectsRow({ caseStudies = {} }: { caseStudies?: Record<str
         {selected && (
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 {(() => {
                   const Icon = PLATFORM_ICON[selected.platform];
                   return <Icon className="size-5" />;

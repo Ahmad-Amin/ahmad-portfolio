@@ -98,8 +98,10 @@ export default async function BlogPostPage({ params }: PageProps<'/blog/[slug]'>
     keywords: post.tags.join(', '),
     author: {
       '@type': 'Person',
+      // Same @id as the homepage and About page, so they resolve to one entity.
+      '@id': `${siteUrl}/#person`,
       name: profile.name,
-      url: siteUrl,
+      url: `${siteUrl}/about`,
       sameAs: socials.map((social) => social.url),
     },
     publisher: {
@@ -128,7 +130,11 @@ export default async function BlogPostPage({ params }: PageProps<'/blog/[slug]'>
                 </BootItem>
                 <BootItem>
                   <p className="mt-4 font-mono text-sm tabular-nums text-muted">
-                    <time dateTime={post.date}>{formatPostDate(post.date)}</time>
+                    By{' '}
+                    <Link href="/about" className="text-foreground transition-colors hover:text-accent">
+                      {profile.name}
+                    </Link>{' '}
+                    · <time dateTime={post.date}>{formatPostDate(post.date)}</time>
                     {post.updated && post.updated !== post.date && (
                       <>
                         {' '}

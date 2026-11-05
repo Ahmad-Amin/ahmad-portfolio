@@ -17,6 +17,20 @@ export const education = [
 ];
 
 export const skills: Record<string, string[]> = {
+  // Not on the CV PDF yet (its summary only says "Applied AI" and LLM integration).
+  // Every item here is something the projects show: FinScan AI calls the OpenAI API
+  // through serverless functions to parse receipts and bank messages into structured
+  // data, and this site's chatbot runs on Claude through the Vercel AI SDK with tool
+  // calling and streamed replies.
+  "AI & LLMs": [
+    "LLM API integration (OpenAI, Anthropic)",
+    "Vercel AI SDK",
+    "Tool calling",
+    "Structured output parsing",
+    "Prompt engineering",
+    "Streaming chat interfaces",
+    "AI-powered features in web and mobile apps",
+  ],
   Frontend: [
     "JavaScript",
     "HTML/CSS",

@@ -75,7 +75,7 @@ export default async function SeriesPage({ params }: PageProps<"/blog/series/[sl
             {entry.upcoming.map((part, index) => (
               <li
                 key={part.order}
-                className="rounded-3xl border border-dashed border-border p-6 sm:p-8"
+                className="rounded-xl border border-dashed border-border p-6 sm:p-8"
               >
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">
                   Part {entry.posts.length + index + 1} · Coming soon

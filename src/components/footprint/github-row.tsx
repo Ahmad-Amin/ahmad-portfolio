@@ -48,7 +48,7 @@ export async function GithubRow() {
                     href={repo.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block rounded-2xl border border-border p-4 transition-colors hover:border-accent"
+                    className="block rounded-lg border border-border p-4 transition-colors hover:border-accent"
                   >
                     <p className="text-sm font-semibold text-foreground">{repo.name}</p>
                     {repo.description && (
