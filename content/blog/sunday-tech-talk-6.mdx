@@ -1,0 +1,168 @@
+---
+title: "Sunday Tech Talk #6: GPT-6 Cyber, OpenAI's Pierre Deal and Discord's Rust Rewrite"
+date: "2026-11-09"
+excerpt: "Sunday Tech Talk #6: GPT-6 Cyber's 81 Firefox flaws, METR on AI speeding up AI research, OpenAI's Pierre deal and Discord's Rust rewrite."
+tags: ["sunday-tech-talk", "ai", "security", "rust"]
+series: "sunday-tech-talk"
+seriesOrder: 6
+---
+
+Welcome to episode six of **Sunday Tech Talk**. This week there are two stories about
+AI getting better at serious engineering work, one about the plumbing that coding
+agents need, and one about a big company rethinking the tools it builds on.
+
+The common thread: **as AI writes and finds more code, everything around the code
+(security, review, source control, the runtime) matters more.**
+
+## GPT-6 Cyber: 81 Firefox flaws
+
+On November 5, OpenAI introduced **GPT-6 Cyber**, a model specialised for finding,
+investigating and validating security vulnerabilities. The reported results:
+
+- **81 previously unknown Firefox vulnerabilities** that Mozilla rated high severity,
+  with many fixes already released.
+- **Working exploits for 948 Linux kernel vulnerabilities**, out of 1,724 it reproduced
+  in OpenAI's controlled testing.
+- **48.5% on ExploitGym**, up from 32.1% for the previous model, GPT-5.6 Cyber.
+
+ExploitGym measures whether a model can exploit specified vulnerabilities in a
+controlled environment. So 48.5% is a score on that benchmark, not the share of
+real-world bugs the model can exploit. It's also a different benchmark setup from the
+one behind the Gemini 4 Carbon numbers in [episode five](/blog/sunday-tech-talk-5),
+so don't compare the two directly.
+
+Firefox and the kernel are mature, heavily tested and fuzzed, which is why the
+results got attention. The interesting part is *how* an agent can find such bugs.
+Many serious flaws aren't one dangerous function but a **gap between components**:
+authentication, the database and file downloads each look fine alone, but nothing
+checks that the requested document belongs to the logged-in user. An agent that reads
+code, follows execution paths, forms a hypothesis and tests it can find those gaps,
+and it can drive the existing tools (fuzzers, static analysis) instead of replacing
+them.
+
+OpenAI rates GPT-6 Cyber **Critical** in cybersecurity under its Preparedness
+Framework (its predecessor was High), and access is restricted. It's available through
+the API and Codex to a subset of approved security customers. The same capability that
+helps defenders could lower the skill needed to attack, so authorization, controlled
+testing and human oversight matter. That's the same access trade-off from the Gemini 4
+Carbon story last week.
+
+**Official source:** [Introducing GPT-6 Cyber](https://openai.com/index/introducing-gpt-6-cyber/) (OpenAI).
+
+## METR on AI speeding up AI research at Anthropic
+
+Can AI help build better AI? On November 5, the research group METR published an
+independent assessment of **AI R&D acceleration at Anthropic**, covering August 12 to
+October 29. It's worth reading carefully, because the headline number is easy to
+misread.
+
+What it found:
+
+- Anthropic's internal models' scores on a benchmark index (AECI, Anthropic's version
+  of the Epoch Capabilities Index) have grown at about **1.9x their historical rate**
+  since October 2025. The 95% confidence interval is **1.5x to 2.8x**.
+- METR is confident this isn't from faster scaling of training compute. It *guesses*
+  that a majority, perhaps around 80%, of the current acceleration is due to AI
+  assistance, and says that's a judgment with substantial uncertainty.
+
+What it does **not** say:
+
+- It measures benchmark scores, not real-world impact. METR warns the result could
+  reflect overfitting to the benchmark or be an artifact of the method, and the
+  acceleration may not map cleanly to real-world progress.
+- Anthropic redacted most of the evidence METR found most informative, so readers rely
+  heavily on METR's judgment.
+- It doesn't show AI autonomously building its successors. Humans still choose
+  research directions and judge results.
+
+Why would AI help? Training a frontier model involves a lot of software work:
+experiments, training infrastructure, distributed-systems debugging, evaluation and
+data pipelines. A coding agent can shorten the loop on those, and across a large team
+that adds up. The feedback loop is simple to state (this generation helps build the
+next) and hard to prove, and the report is careful not to overclaim.
+
+**Official source:** METR's [Independent Assessment of AI R&D Acceleration at Anthropic](https://metr.org/blog/2026-11-05-anthropic-ai-rd-acceleration-assessment/).
+
+## OpenAI plans to acquire Pierre Computer
+
+On November 4, OpenAI announced it **will acquire** Pierre Computer, the company behind
+**Code Storage** (Git infrastructure) and open-source developer tools. It's a planned
+deal, subject to customary closing conditions including regulatory approvals, and the
+terms weren't disclosed. Pierre's **Trees** and **Diffs** libraries already power file
+navigation and change review in the Codex app, and the open-source projects are meant
+to stay open.
+
+Why would that matter? Picture one developer supervising five coding agents: one fixes
+a bug, one builds a feature, one writes tests, two refactor. That's many more branches,
+commits and reviews than before, and across a company, thousands of agents multiply it.
+**Generating code is getting cheap. Storing, reviewing and merging it safely is the
+bottleneck.**
+
+OpenAI's engineering post *Scaling Git at OpenAI* (November 2) shows the same pressure
+from the inside. OpenAI built **Pando**, a Git backend that stays compatible with Git
+clients, and says it cut median push latency by nearly 5x in production. Pando
+coordinates updates to each branch independently, so unrelated pushes don't wait on
+each other.
+
+Does this make Codex a GitHub competitor? Codex, Pando and Pierre's pieces could add up
+to a more integrated platform, but OpenAI hasn't said that's the plan. Treat it as a
+reading of the direction, not a roadmap.
+
+**Official sources:** [OpenAI to acquire Pierre](https://openai.com/index/openai-to-acquire-pierre/)
+and [Scaling Git at OpenAI](https://openai.com/index/scaling-git-at-openai/).
+
+## Discord is rebuilding its apps in Rust
+
+Discord's CTO confirmed it is rebuilding its apps in **Rust**, dropping Electron on
+desktop and React Native on mobile. Discord has used Rust since 2018 for parts of its
+infrastructure and voice stack, so this extends it to the client.
+
+The reported architecture:
+
+- **Desktop:** a native Rust UI built with **GPUI**, the GPU-accelerated framework from
+  the team behind the Zed editor, instead of a bundled Chromium.
+- **Mobile:** a **shared Rust core** (state, networking, common logic) under
+  **native Android and iOS interfaces**.
+
+Electron's appeal is productivity: web skills, one codebase, every desktop OS. The cost
+is carrying a browser runtime, which usually means more memory, and that matters for an
+app people leave open all day next to games and streams. Rust compiles to native code
+and its ownership model prevents many memory-safety bugs at compile time, without a
+garbage collector.
+
+The headline number is an early Windows build using about **290 MB of RAM**. Treat that
+as a prototype demo: comparisons only mean something with the same workload, and the
+figure quoted for the current client varies a lot by source. Discord hasn't announced a
+release date.
+
+Rewriting a mature app is risky. Years of bug fixes and edge cases live in the old code,
+and the product has to keep shipping while the new one catches up. It can still be the
+right call when the architecture itself is the limit. I don't read this as "Electron is
+bad"; for a small team, Electron or Tauri is still a fine choice. The lesson is to
+**revisit technology choices as the product's needs change.**
+
+**Source:** [The Verge on Discord's move away from Electron](https://www.theverge.com/news/1027379/discord-ditching-electron-web-app).
+
+## The bigger picture
+
+- **GPT-6 Cyber:** AI agents are getting good at finding real vulnerabilities, and
+  access has to be handled carefully.
+- **METR:** AI may be speeding up AI research, but the evidence is a benchmark with
+  stated caveats.
+- **Pierre and Pando:** as agents write more code, source-control infrastructure becomes
+  a bottleneck worth buying.
+- **Discord:** foundational choices are worth revisiting when requirements change.
+
+Faster code generation doesn't remove the hard parts of engineering. It moves them to
+**verification, review, security and architecture**, which is where developers add the
+most value.
+
+## Watch the episode
+
+I go deeper into all four stories in the full video.
+
+**YouTube:** [Watch Sunday Tech Talk #6](https://youtu.be/athZ_rSa30o)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
