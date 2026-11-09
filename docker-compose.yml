@@ -1,0 +1,24 @@
+services:
+  web:
+    build:
+      context: .
+      secrets:
+        - build_env
+    image: portfolio:latest
+    container_name: portfolio
+    restart: unless-stopped
+    # Runtime secrets (API keys etc.) come from the same .env file.
+    env_file: .env
+    # Only reachable from the VPS itself; nginx proxies the public domain to it.
+    ports:
+      - "127.0.0.1:5000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+secrets:
+  build_env:
+    file: ./.env

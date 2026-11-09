@@ -126,7 +126,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             />
           </MotionConfig>
         </ThemeProvider>
-        <Analytics />
+        {/* Vercel Analytics only works on Vercel; skip it on the self-hosted build. */}
+        {process.env.VERCEL && <Analytics />}
         {process.env.NEXT_PUBLIC_GA_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
         )}
