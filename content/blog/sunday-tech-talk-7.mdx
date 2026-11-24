@@ -1,0 +1,196 @@
+---
+title: "Sunday Tech Talk #7: Claude Fable 5.2, Gemini 4 Hydrogen, Microsoft's Outage and Fractile"
+date: "2026-11-15"
+updated: "2026-11-24"
+excerpt: "Sunday Tech Talk #7: Claude Fable 5.2 and Mythos 5.2, Gemini 4 Hydrogen's Orchestrator, the Microsoft 365 outage and Fractile's $720M chip round."
+tags: ["sunday-tech-talk", "ai", "cloud", "infrastructure", "semiconductors"]
+series: "sunday-tech-talk"
+seriesOrder: 7
+---
+
+Welcome to episode seven of **Sunday Tech Talk**. This week covers a model built for
+hard engineering work, a way to combine models to save cost, a major cloud outage, and
+a chip startup betting on cheaper AI inference.
+
+The common thread: **a more powerful model is only one part of the problem. Making
+intelligence affordable, reliable and safe is engineering work of its own.**
+
+## Claude Fable 5.2 and Mythos 5.2
+
+On November 9, Anthropic released **Claude Fable 5.2** and **Claude Mythos 5.2**. The
+interesting detail is that they are **the same underlying model**. What differs is the
+safeguards. Fable has strong cybersecurity and biology safeguards, so it can be
+offered to everyone. Mythos is the same model without certain cyber and biology
+safeguards, and it's available only to vetted organizations through Anthropic's Cyber
+Verification and Life Sciences Verification programs.
+
+Anthropic reports better coding, reasoning and vision, and output up to **30% faster**
+than the 5.1 models. API pricing is **$8 per million input tokens and $40 per million
+output tokens**. An optional fast mode generates tokens up to 2.5x faster at double
+the price ($16 and $80).
+
+### What it did in testing
+
+These are Anthropic's own results from prerelease testing, not independent
+benchmarks:
+
+- A team of agents migrated a critical production service from **Python to Rust**, and
+  Anthropic says the new service starts about 26 times faster.
+- Given a one-paragraph prompt, the model designed **three working electronic devices**.
+- **1,000 agents formalized a mathematical theorem in 30 hours**, against 11 days for
+  Anthropic's first attempt.
+
+That's a different kind of task from generating a React component. A migration means
+understanding an architecture, tracing dependencies, rewriting parts, running tests
+and fixing what breaks. It's long work across many steps. It doesn't show that the
+model can finish any engineering or science project on its own.
+
+### The safety part
+
+The most useful detail for developers is a sandbox test. Across more than 1,800
+scenarios, Anthropic reports that Mythos 5.2 used credentials or files placed
+**outside its sandbox in 3.1% of cases**. Opus 5.5 did it in 3.3%, and the earlier
+Mythos 5 in 39%. That's a big improvement, but it isn't zero.
+
+So don't rely on a model choosing to obey a restriction. Permissions, network limits,
+isolated environments and human approval are still your job. **Treat intelligence and
+authorization as separate concerns.**
+
+**Official source:** [Introducing Claude Fable 5.2 and Claude Mythos 5.2](https://www.anthropic.com/claude-fable-and-mythos-5-2) (Anthropic).
+
+## Gemini 4 Hydrogen and Antigravity Orchestrator
+
+On November 12, Google released **Gemini 4 Hydrogen**, a model built for fast, efficient
+everyday coding and agentic work. The frontier models, Carbon and Argon, stay focused on
+deep reasoning. Google prices Hydrogen at $1.50 per million input tokens and $7.50 per
+million output tokens, flat across its 1M-token context window.
+
+It also added **Orchestrator** to Google Antigravity, which switches between Carbon and
+Hydrogen within one session. Picture adding authentication to an existing app. Carbon
+can start read-only, exploring dependencies and building a plan. Hydrogen then writes the
+edits, updates packages and runs tests. If it gets stuck, it hands the problem back to
+Carbon. Not every step needs the most expensive model.
+
+Google's number: on Terminal-Bench, Orchestrator reached **near-Carbon task success
+while using 24% less quota and finishing 19% faster**. Two cautions. These are Google's
+own results, and its two announcements cite different benchmark versions (4.0 in one,
+4.1 in the other) without explaining the difference. Test it on your own repositories.
+
+This is also an engineering problem, not just a model choice. A multi-model system
+needs task routing, shared context, and a way for one agent to check another's work.
+Note that it's different from a **mixture-of-experts** model, which routes work inside
+one model's architecture. Orchestration coordinates separate models at the workflow
+level.
+
+**Official sources:** [Introducing Gemini 4 Hydrogen](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-hydrogen/) (Google)
+and [Gemini 4 Hydrogen and Orchestrator](https://antigravity.google/blog/gemini-4-hydrogen-in-google-antigravity) (Google Antigravity).
+
+## The Microsoft 365 outage
+
+On November 12, Microsoft 365 services started failing, with Exchange Online hit
+hardest. Outlook access broke and mail delivery was delayed, and Teams and Copilot were
+affected too. Customer impact began around 11:20 AM ET on November 12 and lasted until
+about 11:10 AM ET the next day, nearly 24 hours.
+
+It wasn't a hack. According to Microsoft's preliminary report, as reported by The
+Register and BleepingComputer, it was a **latent bug in a fix deployed to its
+networking gateway servers starting in July**. For over three months it ran worldwide
+without problems. Then three things lined up:
+
+- **The bug:** lock contention in an internal process that exhausted CPU and memory.
+  It was worse on machines with more cores and newer hardware, while Microsoft's load
+  testing had focused on weaker hardware with fewer cores.
+- **A failover:** about 15 hours earlier, Teams traffic had moved to the primary gateway
+  that Exchange Online also depends on.
+- **Reduced capacity:** nearly 14% of gateway capacity was out of service because of an
+  unrelated issue the day before.
+
+In less than two hours the defect hit the fleet, and at the lowest point more than 80%
+of servers were unresponsive. Services that could fail away from the gateway did.
+Exchange Online reportedly can't, for scale reasons, so it stayed down.
+
+The lessons are general. A **shared dependency** widens the blast radius: when many
+services route through one component, the healthy ones still go down with it. A change
+can look safe for months until traffic, hardware and capacity line up badly. And a
+failover can move load onto the very thing that's already weak.
+
+What to do about it in your own systems:
+
+- Set timeouts, limit retries, and use circuit breakers so one failure doesn't cascade.
+- Degrade gracefully when a dependency is down.
+- Test failover under realistic load, on the hardware you actually run.
+- Don't treat multi-cloud as an automatic fix. It adds cost and new ways to fail.
+
+**Update, November 24:** Microsoft's final report, as covered by The Register, confirms
+these findings. It adds plans for isolating failures before they reach global traffic,
+testing on newer hardware with realistic load, and wider failover testing. Microsoft
+says all queued enterprise email was delivered, though some consumer messages sent to
+long-inactive mailboxes expired.
+
+**Sources:** [The Register](https://www.theregister.com/2026/11/16/microsoft-blames-monster-email-outage-on-software-defect-introduced-in-july-fix/5310026)
+and [BleepingComputer](https://bleepingcomputer.com/news/microsoft/microsoft-says-months-old-bug-caused-global-microsoft-365-outage)
+on Microsoft's reports.
+
+## Fractile's $720 million for cheaper inference
+
+On November 11, UK chip startup **Fractile** raised a **$720 million Series C**, led by
+Thrive Capital, Founders Fund, Lightspeed and Redpoint, with backing from UK
+government funds including the Sovereign AI Fund and the British Business Bank. The $7
+billion valuation is press-reported (Reuters and the Financial Times). The UK
+government's own figure is "over £5 billion".
+
+Why do chips matter here? **Training** adjusts a model's parameters, and happens
+rarely. **Inference** is using the model to produce answers, and happens millions of
+times a day. As agents run longer workflows with many model calls, the cost of
+inference grows.
+
+Often the limit isn't how fast a processor can calculate, but how fast the model's
+data can reach it. That's the **memory wall**. Fractile's approach is to stack standard
+DRAM on top of its chips instead of building memory into the processor, which shortens
+the distance data travels. It also builds a compiler and rack-scale systems around the
+chips, which matters because hardware alone doesn't make a platform. Nvidia's strength
+is partly the CUDA software ecosystem, not only its chips.
+
+Can it challenge Nvidia? The claims about speed and energy savings come from the company
+and press reports. Nothing has shipped or been independently benchmarked yet, and the
+CEO says the first chips and systems arrive next year. A big funding round shows
+investor belief, not that the hardware works.
+
+**Sources:** [SiliconANGLE](https://siliconangle.com/2026/11/11/inference-chip-developer-fractile-raises-720m-in-funding/)
+and [TechCrunch](https://techcrunch.com/?p=3187339) on the funding round.
+
+## The bigger picture
+
+- **Anthropic:** models are taking on harder engineering and research tasks, so
+  controlled execution matters more.
+- **Google:** combining models may balance intelligence, speed and cost better than one
+  big model.
+- **Microsoft:** the reliability of what's underneath your application is still the
+  hardest part to get right.
+- **Fractile:** if AI usage keeps growing, the cost of running models becomes as
+  important as their capability.
+
+More capable models don't remove engineering problems. They move them toward
+orchestration, safety boundaries, reliability and cost, which is where developers can
+add the most value.
+
+## Watch the episode
+
+I go deeper into all four stories in the full video.
+
+**YouTube:** [Watch Sunday Tech Talk #7](https://youtu.be/JmI5xAEyCDE)
+
+**Chapters:**
+
+- 00:00 Introduction
+- 01:36 Claude Fable 5.2 and Mythos 5.2
+- 03:19 Gemini 4 Hydrogen and Antigravity Orchestrator
+- 07:23 The Microsoft 365 outage
+- 10:37 Fractile's $720M round
+- 13:42 Final verdict
+
+**Previous episode:** [Sunday Tech Talk #6](/blog/sunday-tech-talk-6)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
