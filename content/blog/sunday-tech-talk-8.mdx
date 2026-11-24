@@ -1,0 +1,223 @@
+---
+title: "Sunday Tech Talk #8: Microsoft's MAI Models, Java4Shell, Meta's €805M Fine and the AI Graveyard"
+date: "2026-11-22"
+excerpt: "Sunday Tech Talk #8: Microsoft's MAI Code 2, the Java4Shell flaw, Meta's €805M privacy fine, the JetBrains survey and the AI startup graveyard."
+tags: ["sunday-tech-talk", "ai", "security", "privacy", "software-engineering", "startups"]
+series: "sunday-tech-talk"
+seriesOrder: 8
+---
+
+Welcome to episode eight of **Sunday Tech Talk**. This week has five stories: Microsoft's
+own coding and security models, a critical flaw in the Java runtime, a record privacy
+fine for Meta, what developers say about working with AI, and the AI startups that
+aren't making it.
+
+The common thread: **building something powerful is only the start. Security, privacy,
+cost and sustainability decide whether it lasts.**
+
+## Microsoft's MAI Code 2 and MAI Cyber 2 Flash
+
+On November 17, at Ignite, Microsoft announced **seven new MAI models**. Three matter
+most to developers:
+
+- **MAI Code 2:** for production coding, deep debugging, multi-file work and repo-wide
+  reasoning.
+- **MAI Code 2 Flash:** a cheaper model for high-volume work like code explanations,
+  targeted edits and routine fixes.
+- **MAI Cyber 2 Flash:** a security model for finding vulnerabilities.
+
+The code models are available in GitHub Copilot, and Code 2 Flash is in limited preview
+in Microsoft Foundry. Microsoft is open that they're **not yet tuned for harder problems
+like fundamental science research and very long-horizon agentic work.**
+
+The headline is the price-performance claim. Microsoft says MAI Code 2 reaches **98% of
+GPT-6.1 Sol's performance at 40% of the cost**, and **96% of Claude Opus 5.5's at 5% of
+the cost**. The details matter:
+
+- The scores average four benchmarks, mostly run on Microsoft's own internal platform.
+- **Code 2's cost is shown at a 50% promotional price.** The real gap will be smaller.
+- For MAI Cyber 2 Flash, Microsoft reports **92.3% vs 91.5%** for GPT-6 Astra on
+  CyberGym-E2E at under 2% of the cost per task. That cost is an offline evaluation
+  cost at list price, not customer spend. It used half the reasoning budget and 813 of
+  the benchmark's 905 tasks, after excluding 92 that overlap with training data.
+
+So these are Microsoft's results, not independent proof. They do show the strategy:
+compete on intelligence *per dollar*. Not every task needs your most expensive model,
+and a small coding model plus a security model for sensitive changes can cut cost. It
+also adds engineering work: choosing models, sharing context and validating their
+output. And a model that finds vulnerabilities can help attackers too, so permissions,
+isolation, auditing and human approval still matter. MAI Cyber 2 Flash is coming only
+through Microsoft's own security products, starting mid-December.
+
+**Official sources:** [Microsoft's Ignite announcement](https://microsoft.ai/news/microsoft-ignite-2026/),
+[MAI Code 2](https://microsoft.ai/news/introducing-mai-code-2-and-mai-code-2-flash/)
+and [MAI Cyber 2 Flash](https://microsoft.ai/news/introducing-mai-cyber-2-flash/) (Microsoft AI).
+
+## Java4Shell: a flaw in the runtime, not your code
+
+On November 17, researchers at Calif disclosed **CVE-2026-114938, "Java4Shell"**, a
+memory-corruption bug in the **HotSpot JVM's Base64 decoder**. CISA issued an alert the
+same day titled "Critical Java Vulnerability Requires Immediate Patching".
+
+Base64 shows up everywhere: auth headers, tokens, uploads, API requests. HotSpot speeds
+up some decoding with a native routine on x86-64 CPUs that support **AVX-512 VBMI**
+(Intel Ice Lake and later, AMD Zen 4 and later). That routine mishandles malformed
+padding at the end of the input and can write past its buffer into the Java heap.
+Specially crafted input can crash the JVM and, in some cases, allow unauthenticated
+remote code execution.
+
+"Isn't Java memory-safe?" Your Java *code* is. The JVM underneath is C++ and
+processor-specific native code, and a bug there bypasses the protections your
+application relies on. This is the same lesson as PHP2Shell in
+[episode four](/blog/sunday-tech-talk-4): the runtime can be the vulnerability.
+
+Your risk depends on the details:
+
+- **Versions:** Oracle Java 17.0.6 to 17.0.21, and 21, 25 and 27 builds before the
+  patched releases (**17.0.21.1, 21.0.13.1, 25.0.5.1, 27.0.1.1**). OpenJDK-based
+  distributions are affected too and patch on their own schedules.
+- **Hardware:** **ARM64 isn't affected**, so Graviton is fine. Standard OpenJDK 8 and 11
+  don't use the vulnerable path.
+- **Input:** the basic and URL decoders are vulnerable, the MIME decoder isn't, and
+  untrusted input has to reach the decoder.
+- **Exploitation:** as of November 18, Group-IB found no evidence of attacks in the
+  wild. A proof of concept exists for the memory corruption, but not a universal
+  exploit.
+
+The fix is to patch. Updating your Maven dependencies won't help, since the flaw is in
+the JDK. CISA says to find every JDK, including those bundled in containers and
+appliances, and to patch internet-facing systems first. CERT-EU adds that you should
+restart all JVMs afterwards. If you can't patch yet, CERT-EU lists a workaround that
+disables the intrinsic, at some performance cost:
+
+```text
+-XX:+UnlockDiagnosticVMOptions -XX:-UseBASE64Intrinsics
+```
+
+Rebuild your container images, and check that the patched version is what's actually
+running in production.
+
+**Official sources:** [CISA's alert](https://www.cisa.gov/news-events/alerts/2026/11/17/critical-java-vulnerability-requires-immediate-patching),
+[CERT-EU advisory 2026-021](https://cert.europa.eu/publications/security-advisories/2026-021/)
+and [Group-IB's analysis](https://www.group-ib.com/blog/java4shell-vulnerability/).
+
+## Meta's €805 million fine in Italy
+
+On November 14, Italy's data protection authority, the **Garante**, announced an **€805
+million fine** against Meta over a Facebook feature on Android: "Get tips from your
+gallery while browsing Facebook". While you scrolled, it suggested photos and videos
+from your phone as post ideas. The fine is about 0.47% of Meta's global turnover, and
+roughly 20 million Android users in Italy were affected.
+
+The Garante found that Facebook accessed photos, videos and metadata **without specific
+consent and without properly informing users**. It asked for one app-wide gallery
+permission, after a prompt about enabling "other features", so users couldn't tell
+they were also turning on suggestions. The feature was on by default.
+
+This is the difference between **permission and consent**. Android may say the app can
+read your gallery, because you tapped "allow" to upload one photo. But letting an app
+*scan* your gallery to suggest content is a different purpose. Meta has 60 days to ask
+for separate, specific consent and keep the feature off by default, even for people who
+already granted access.
+
+A fact to keep straight: the decision did **not** determine whether gallery content was
+used to train AI. Meta denies it, and the Garante reserved the right to look separately
+at a newer 2026 cloud-processing feature. Don't read this as proof of secret AI training.
+
+For developers, privacy is a design choice. An expense app that reads receipts doesn't
+need your whole gallery. The **Android photo picker** lets users select individual
+images without broad access. Ask only for what the feature needs, when it needs it,
+explain why, and make withdrawing consent easy.
+
+**Sources:** [The Next Web](https://thenextweb.com/news/italy-fines-meta-805m-facebook-android-photos)
+and [PPC Land](https://ppc.land/italy-fines-meta-eur805m-over-facebooks-access-to-android-photo-galleries/)
+on the Garante's decision, and Android's [photo picker documentation](https://developer.android.com/training/data-storage/shared/photopicker).
+
+## JetBrains' 2026 developer survey
+
+JetBrains published its **State of Developer Ecosystem 2026** report, based on **28,945
+developers from 198 countries**, surveyed between May and July 2026.
+
+Per TechRepublic's coverage, the languages developers most plan to adopt in the next
+six months are **Rust (10%), Go (8%) and Python (5%)**. That measures intent, not
+current usage, but it shows interest in performance, concurrency and memory safety.
+
+The AI findings are more useful. Nearly three-quarters of developers report higher
+productivity, and 59% say AI helps them learn new technologies faster. But JetBrains
+notes that developers' work is **shifting toward reviewing and correcting AI output**.
+One other number stands out: 46% say their sense of code ownership has decreased in the
+past year because of AI. These are self-reported experiences, not controlled
+experiments.
+
+Picture an AI agent generating a payment integration in minutes. You still have to ask:
+are webhooks authenticated, are payments idempotent, can duplicate requests corrupt
+data, are secrets safe? Writing code got cheaper. **Verifying it didn't.**
+
+Also worth noting: project guidelines such as `AGENTS.md`, `CLAUDE.md` or
+`.cursorrules` are the most common practice with AI agents, and more experienced
+developers are more likely to give their agents guidelines, specs and **ways to verify
+their work**. Context helps, but generated changes still need tests and security
+checks.
+
+**Sources:** the [JetBrains report](https://devecosystem.jetbrains.com/),
+its [AI section](https://devecosystem.jetbrains.com/artificial-intelligence) and
+[TechRepublic's coverage](https://www.techrepublic.com/article/news-jetbrains-2026-python-javascript-rust-survey/).
+
+## The AI startup graveyard
+
+On November 14, TechCrunch published a running list, **"The AI graveyard"**, of AI
+projects and startups that didn't make it. It opens with two cases.
+
+**Character.AI** filed a voluntary **Chapter 11** on October 12 to run a court-supervised
+sale, citing "significant legal, regulatory, and operational headwinds". It hasn't shut
+down: the platform stayed up while the court approved bidding procedures on November 4.
+Disney is the stalking-horse bidder for certain assets, reported at $20 million plus a
+non-exclusive license to the technology, with an auction set for December 1. **Ollie**,
+a privacy-focused family assistant launched in June 2026, said it would shut down on
+November 6. Its CEO wrote, "We got close, but ultimately couldn't keep up."
+
+Why do AI products struggle in a boom? One reason is **cost per use**. A normal SaaS
+request queries a database. An AI request also runs a large model, every time. As an
+illustration (not Character.AI's real numbers): 10,000 daily users sending 20 requests
+each at $0.003 per request is $600 a day, or about $18,000 a month, before salaries or
+support. If revenue per user doesn't cover that, popularity becomes a bill.
+
+Another is **differentiation**. If your product is one feature of a third-party model,
+what happens when the model provider ships that feature itself? Lasting advantages tend
+to be proprietary data, specialised workflows, deep integrations or customer
+relationships. And engineering decisions help the economics: routing simple requests to
+smaller models, caching, trimming prompts and context, and batching. Even keeping this
+site's chatbot on a small model with a short, fixed-size prompt is a cost decision.
+
+Character.AI's troubles weren't only about inference cost, since it named legal and
+regulatory issues too. The point is wider: a great demo and a large audience aren't a
+business model.
+
+**Sources:** [TechCrunch's AI graveyard](https://techcrunch.com/2026/11/14/the-ai-graveyard-a-running-list-of-projects-and-startups-that-didnt-make-it/),
+and Character.AI's [announcement](https://blog.character.ai/an-update-on-character-ai/)
+and [Chapter 11 update](https://blog.character.ai/chapter-11-update-and-transaction-notice/).
+
+## The bigger picture
+
+- **Microsoft:** models tuned for cost and a specific job could be more sustainable than
+  one big model for everything, but check the benchmark footnotes.
+- **Java4Shell:** the runtime under your code is part of your attack surface.
+- **Meta:** an OS permission isn't the same as informed consent.
+- **JetBrains:** AI speeds up writing code and raises the value of reviewing it.
+- **The graveyard:** capability alone doesn't guarantee a sustainable business.
+
+Engineers are no longer only shipping features. Security, privacy, cost, regulation and
+long-term maintenance are part of the job, and getting something working is only the
+beginning.
+
+## Watch the episode
+
+I go deeper into all five stories in the full video.
+
+**YouTube:** [Watch Sunday Tech Talk #8](https://youtu.be/L_0PD42EC3A)
+
+**Previous episode:** [Sunday Tech Talk #7](/blog/sunday-tech-talk-7)
+
+*Sunday Tech Talk is a weekly series covering important developments across AI,
+software engineering, infrastructure, developer tools, Big Tech and the wider
+technology industry.*
